@@ -1,5 +1,7 @@
 # Rank51-2026TAAC-KDDCUP
 
+[![Repo Checks](https://github.com/Rongfeng-Guo/Rank51-TAAC2026-KDDCUP/actions/workflows/repo-checks.yml/badge.svg)](https://github.com/Rongfeng-Guo/Rank51-TAAC2026-KDDCUP/actions/workflows/repo-checks.yml)
+
 本仓库为队伍 **exclusive** 在腾讯广告算法大赛 2026 Academic Track 的开源代码。最终线上分数为 **0.832321**，排名 **51**。主要围绕时间特征、序列兴趣匹配、训练样本时间窗口、用户 dense 特征处理和稀疏参数训练稳定性做了迭代。
 最终成绩：
 ![rank51](rank51.png)
@@ -14,6 +16,28 @@ PCVR 任务里，用户转化行为有明显的时间规律，也有很强的候
 - 使用 recent-window 训练策略，让训练分布贴近提交阶段的样本分布。
 
 ## 默认运行
+
+### 环境依赖
+
+建议使用 Python 3.10+、PyTorch 2.x 和 CUDA GPU 环境。最小依赖可以通过：
+
+```bash
+pip install -r requirements.txt
+```
+
+本仓库只包含代码、配置和方案说明，不包含腾讯广告算法大赛原始数据。运行前需要按官方数据包保持 `schema.json` 与 parquet 文件可访问。
+
+### 数据与路径约定
+
+训练入口会读取环境变量中的路径，常用设置如下：
+
+```bash
+export TRAIN_DATA_PATH=/path/to/train_parquet_dir
+export EVAL_DATA_PATH=/path/to/eval_parquet_dir
+export MODEL_OUTPUT_PATH=/path/to/ckpt_dir
+```
+
+`TRAIN_DATA_PATH` 和 `EVAL_DATA_PATH` 对应的目录应包含 `*.parquet` 和 `schema.json`。默认训练脚本会在仓库目录下创建 `ckpt/`、`log/` 和 `events/`。这些目录属于运行产物，不应提交到 Git。
 
 ```bash
 bash run.sh
@@ -172,3 +196,13 @@ utils.py        # seed、logger、EarlyStopping、focal loss 等工具
 run.sh          # 默认训练脚本
 ns_groups.json  # NS token 分组配置
 ```
+
+## 复现边界
+
+- 线上分数依赖官方测试集、提交窗口和当时的训练数据版本，仓库代码不能单独保证复现完全相同的榜单分数。
+- 默认配置记录的是最终提交阶段使用的主方案；历史实验、失败分支和私有运行日志没有完整纳入仓库。
+- 若更换 GPU 显存、PyTorch/CUDA 版本或 batch size，建议先使用较小 `SEQ_HASH_BUCKET_SIZE` 和 `BATCH_SIZE` 做 smoke run，再恢复提交配置。
+
+## 引用
+
+如果这个方案对你的竞赛复盘或研究有帮助，可以引用本仓库的 `CITATION.cff`。

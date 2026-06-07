@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If this repository helps your competition review or research, please cite it as below."
+title: "Rank51-TAAC2026-KDDCUP"
+authors:
+  - family-names: "Guo"
+    given-names: "Rongfeng"
+repository-code: "https://github.com/Rongfeng-Guo/Rank51-TAAC2026-KDDCUP"
+date-released: 2026-05-28
+keywords:
+  - TAAC
+  - KDD Cup
+  - advertising conversion prediction
+  - sequence modeling

@@ -1,0 +1,5 @@
+numpy>=1.24
+pyarrow>=14.0
+scikit-learn>=1.3
+torch>=2.0
+tqdm>=4.65
