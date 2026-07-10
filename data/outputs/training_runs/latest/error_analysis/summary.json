@@ -1,0 +1,24 @@
+{
+  "predictions_path": "outputs\\training_runs\\latest\\valid_predictions.parquet",
+  "valid_prepared_path": "outputs\\prepared_balanced_preset\\valid.parquet",
+  "rows": 200,
+  "error_rows": 35,
+  "error_rate": 0.175,
+  "time_bucket_count": 4,
+  "activity_bucket_count": 4,
+  "activity_definition": {
+    "type": "sum_of_domain_history_lengths",
+    "representative_columns": {
+      "domain_a": "domain_a_seq_38_len",
+      "domain_b": "domain_b_seq_67_len",
+      "domain_c": "domain_c_seq_27_len",
+      "domain_d": "domain_d_seq_17_len"
+    }
+  },
+  "outputs": {
+    "label_summary": "outputs\\training_runs\\latest\\error_analysis\\label_error_summary.csv",
+    "time_summary": "outputs\\training_runs\\latest\\error_analysis\\time_bucket_error_summary.csv",
+    "activity_summary": "outputs\\training_runs\\latest\\error_analysis\\activity_bucket_error_summary.csv",
+    "high_confidence_errors": "outputs\\training_runs\\latest\\error_analysis\\high_confidence_errors.csv"
+  }
+}

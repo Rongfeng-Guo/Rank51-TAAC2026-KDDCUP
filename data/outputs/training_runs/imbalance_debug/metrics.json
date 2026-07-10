@@ -1,0 +1,98 @@
+{
+  "device": "cpu",
+  "model_type": "sequence-encoder",
+  "feature_mode": "dense-plus-sequence",
+  "input_dim": 115,
+  "dense_input_dim": 115,
+  "output_dim": 2,
+  "sequence_hidden_dim": 32,
+  "imbalance_handling": {
+    "strategy": "both",
+    "class_counts": {
+      "label_1": 711,
+      "label_2": 89
+    },
+    "class_weights": {
+      "label_1": 0.562588,
+      "label_2": 4.494382
+    },
+    "uses_sampler": true,
+    "uses_class_weight": true
+  },
+  "best_epoch": 1,
+  "best_valid_loss": 1.297751,
+  "best_threshold_summary": {
+    "default_threshold_metrics": {
+      "tp": 35,
+      "fp": 165,
+      "tn": 0,
+      "fn": 0,
+      "precision": 0.175,
+      "recall": 1.0,
+      "f1": 0.2978723404255319,
+      "positive_rate": 1.0,
+      "threshold": 0.5
+    },
+    "best_threshold_metrics": {
+      "tp": 28,
+      "fp": 121,
+      "tn": 44,
+      "fn": 7,
+      "precision": 0.18791946308724833,
+      "recall": 0.8,
+      "f1": 0.30434782608695654,
+      "positive_rate": 0.745,
+      "threshold": 0.9299999999999999
+    }
+  },
+  "checkpoint_path": "outputs\\training_runs\\imbalance_debug\\best_model.pt",
+  "metrics_path": "outputs\\training_runs\\imbalance_debug\\metrics.json",
+  "predictions_path": "outputs\\training_runs\\imbalance_debug\\valid_predictions.parquet",
+  "batch_preview": {
+    "batch_size": 32,
+    "dense_features_shape": [
+      32,
+      115
+    ],
+    "sequence_summary_shape": [
+      32,
+      225
+    ],
+    "dense_plus_sequence_shape": [
+      32,
+      340
+    ],
+    "label_shape": [
+      32
+    ],
+    "first_sequence_name": "domain_a_seq_38",
+    "first_sequence_values_shape": [
+      32,
+      256
+    ],
+    "first_sequence_mask_shape": [
+      32,
+      256
+    ]
+  },
+  "training_log": [
+    {
+      "epoch": 1,
+      "train_loss": 0.41626,
+      "train_accuracy": 0.48875,
+      "valid_loss": 1.297751,
+      "valid_accuracy": 0.175,
+      "valid_positive_metrics_at_0_5": {
+        "precision": 0.175,
+        "recall": 1.0,
+        "f1": 0.297872
+      },
+      "valid_best_threshold": 0.93,
+      "valid_positive_metrics_at_best_threshold": {
+        "precision": 0.187919,
+        "recall": 0.8,
+        "f1": 0.304348
+      }
+    }
+  ]
+}

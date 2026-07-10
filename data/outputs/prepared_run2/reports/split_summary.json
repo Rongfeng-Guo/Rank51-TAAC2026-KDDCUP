@@ -1,0 +1,24 @@
+{
+  "train": {
+    "rows": 800,
+    "label_distribution": {
+      "1": 711,
+      "2": 89
+    },
+    "time_range": {
+      "min": 1772725027,
+      "max": 1772725686
+    }
+  },
+  "valid": {
+    "rows": 200,
+    "label_distribution": {
+      "1": 165,
+      "2": 35
+    },
+    "time_range": {
+      "min": 1772725687,
+      "max": 1772725910
+    }
+  }
+}

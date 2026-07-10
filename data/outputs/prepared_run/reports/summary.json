@@ -1,0 +1,31 @@
+{
+  "rows": 1000,
+  "columns": 120,
+  "feature_groups": {
+    "id_and_label": 5,
+    "user_int": 46,
+    "user_dense": 10,
+    "item_int": 14,
+    "domain_a_seq": 9,
+    "domain_b_seq": 14,
+    "domain_c_seq": 12,
+    "domain_d_seq": 10
+  },
+  "null_counts": {
+    "user_id": 0,
+    "item_id": 0,
+    "label_type": 0,
+    "label_time": 0,
+    "timestamp": 0
+  },
+  "count_matches": {
+    "id_and_label": true,
+    "user_int": true,
+    "user_dense": true,
+    "item_int": true,
+    "domain_a_seq": true,
+    "domain_b_seq": true,
+    "domain_c_seq": true,
+    "domain_d_seq": true
+  }
+}

@@ -5,7 +5,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, NamedTuple, Tuple, Optional, Union, Dict, Set
+from typing import List, NamedTuple, Tuple, Optional, Union
 
 
 class ModelInput(NamedTuple):
@@ -16,37 +16,6 @@ class ModelInput(NamedTuple):
     seq_data: dict        # {domain: tensor [B, S, L]}
     seq_lens: dict        # {domain: tensor [B]}
     seq_time_buckets: dict  # {domain: tensor [B, L]}
-
-
-
-def _parse_seq_hash_allowlist(allowlist: str) -> Dict[str, Set[int]]:
-    """Parse strings like "seq_b:69,seq_c:29,34,47"."""
-    result: Dict[str, Set[int]] = {}
-    allowlist = (allowlist or "").strip()
-    if not allowlist:
-        return result
-    if allowlist.lower() == "all":
-        result["*"] = set()
-        return result
-    current_domain: Optional[str] = None
-    for raw_part in allowlist.split(','):
-        part = raw_part.strip()
-        if not part:
-            continue
-        if ':' in part:
-            domain, fid_text = part.split(':', 1)
-            current_domain = domain.strip()
-            result.setdefault(current_domain, set())
-            fid_text = fid_text.strip()
-            if fid_text:
-                result[current_domain].add(int(fid_text))
-        else:
-            if current_domain is None:
-                raise ValueError(
-                    f"Invalid seq_hash_allowlist part={part!r}. Expected seq_c:29,34 or seq_b:69,seq_c:29,34."
-                )
-            result[current_domain].add(int(part))
-    return result
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -458,45 +427,17 @@ class MultiSeqQueryGenerator(nn.Module):
         num_ns: int,
         num_queries: int,
         num_sequences: int,
-        hidden_mult: int = 4,
-        query_pooling: str = 'mean',
-        item_token_start: int = 0,
-        item_token_count: int = 0,
-        din_dropout: float = 0.0,
+        hidden_mult: int = 4
     ) -> None:
         super().__init__()
-        if query_pooling not in {'mean', 'mean_din'}:
-            raise ValueError(f"Unknown query_pooling: {query_pooling}")
-        if not 0.0 <= din_dropout <= 1.0:
-            raise ValueError("din_dropout must be in [0, 1]")
         self.num_queries = num_queries
         self.num_sequences = num_sequences
         self.d_model = d_model
-        self.query_pooling = query_pooling
-        self.din_dropout = float(din_dropout)
-        self.use_din_pooling = query_pooling == 'mean_din'
-        self.item_token_start = int(item_token_start)
-        self.item_token_count = int(item_token_count)
-        if self.use_din_pooling and self.item_token_count <= 0:
-            raise ValueError("mean_din requires at least one item-side NS token")
 
-        num_seq_pooling_tokens = 1 + (1 if self.use_din_pooling else 0)
-        global_info_dim = (num_ns + num_seq_pooling_tokens) * d_model
+        global_info_dim = (num_ns + 1) * d_model
 
         # LayerNorm on global_info to prevent gradient explosion from large-dim concat
         self.global_info_norm = nn.LayerNorm(global_info_dim)
-
-        if self.use_din_pooling:
-            # Each sequence domain learns an item-conditioned DIN-style scorer.
-            self.din_poolers_per_seq = nn.ModuleList([
-                nn.Sequential(
-                    nn.Linear(d_model * 4, d_model),
-                    nn.SiLU(),
-                    nn.Dropout(din_dropout),
-                    nn.Linear(d_model, 1),
-                )
-                for _ in range(num_sequences)
-            ])
 
         # Each sequence has N independent FFNs
         self.query_ffns_per_seq = nn.ModuleList([
@@ -531,53 +472,18 @@ class MultiSeqQueryGenerator(nn.Module):
         """
         B = ns_tokens.shape[0]
         ns_flat = ns_tokens.view(B, -1)  # (B, M*D)
-        item_query = None
-        if self.use_din_pooling:
-            item_tokens = ns_tokens[
-                :,
-                self.item_token_start:self.item_token_start + self.item_token_count,
-                :
-            ]
-            item_query = item_tokens.mean(dim=1)  # (B, D)
 
         q_tokens_list = []
         for i in range(self.num_sequences):
             # MeanPool(Seq_i)
-            seq_tokens = seq_tokens_list[i]
             valid_mask = ~seq_padding_masks[i]  # True = valid
             valid_mask_expanded = valid_mask.unsqueeze(-1).float()  # (B, L_i, 1)
-            seq_sum = (seq_tokens * valid_mask_expanded).sum(dim=1)  # (B, D)
+            seq_sum = (seq_tokens_list[i] * valid_mask_expanded).sum(dim=1)  # (B, D)
             seq_count = valid_mask_expanded.sum(dim=1).clamp(min=1)  # (B, 1)
             seq_pooled = seq_sum / seq_count  # (B, D)
 
-            global_parts = [ns_flat, seq_pooled]
-            if self.use_din_pooling:
-                # Item-conditioned history summary. Padding rows are masked
-                # before softmax and zeroed after softmax, so all-padding
-                # sequences produce a zero vector.
-                if seq_tokens.shape[1] == 0:
-                    din_pool = seq_tokens.new_zeros(B, self.d_model)
-                else:
-                    item_query_expanded = item_query.unsqueeze(1).expand(
-                        -1, seq_tokens.shape[1], -1)
-                    din_features = torch.cat([
-                        item_query_expanded,
-                        seq_tokens,
-                        item_query_expanded - seq_tokens,
-                        item_query_expanded * seq_tokens,
-                    ], dim=-1)
-                    din_scores = self.din_poolers_per_seq[i](din_features).squeeze(-1)
-                    din_scores = din_scores.masked_fill(
-                        ~valid_mask,
-                        torch.finfo(din_scores.dtype).min,
-                    )
-                    din_weights = F.softmax(din_scores, dim=1)
-                    din_weights = din_weights * valid_mask.to(din_weights.dtype)
-                    din_pool = (seq_tokens * din_weights.unsqueeze(-1)).sum(dim=1)
-                global_parts.append(din_pool)
-
-            # GlobalInfo_i = Concat(NS_flat, sequence pooling summaries)
-            global_info = torch.cat(global_parts, dim=-1)
+            # GlobalInfo_i = Concat(NS_flat, seq_pooled_i)
+            global_info = torch.cat([ns_flat, seq_pooled], dim=-1)  # (B, (M+1)*D)
             global_info = self.global_info_norm(global_info)
 
             # Generate N query tokens
@@ -1283,284 +1189,6 @@ class RankMixerNSTokenizer(nn.Module):
         return torch.cat(tokens, dim=1)  # (B, num_ns_tokens, d_model)
 
 
-def _lookup_dense_span(schema, fid: int):
-    """Return ``(offset, length)`` for a dense fid, or ``None`` if absent."""
-    if schema is None:
-        return None
-    if hasattr(schema, 'get_offset_length'):
-        try:
-            return schema.get_offset_length(fid)
-        except KeyError:
-            return None
-    entries = getattr(schema, 'entries', schema)
-    for entry_fid, offset, length in entries:
-        if entry_fid == fid:
-            return offset, length
-    return None
-
-
-class QuantileTrendEncoder(nn.Module):
-    """
-    Encode quantile / rank trend dense vectors into one NS token.
-
-    Expected default fids:
-        89, 90, 91
-    """
-
-    # NOTE: USER_DENSE_GROUP_PROJECTOR - This branch handles compact bounded
-    # rank/trend vectors separately from count-like dense statistics.
-    def __init__(
-        self,
-        num_fids: int,
-        segment_lengths: List[int],
-        d_model: int,
-        mid_dim: int = 64,
-        dropout: float = 0.05,
-    ) -> None:
-        super().__init__()
-        if num_fids <= 0:
-            raise ValueError("num_fids must be > 0")
-        if not segment_lengths:
-            raise ValueError("segment_lengths must not be empty")
-        if len(segment_lengths) != num_fids:
-            raise ValueError("segment_lengths length must match num_fids")
-        if any(length <= 0 for length in segment_lengths):
-            raise ValueError("segment_lengths must all be > 0")
-        if mid_dim <= 0:
-            raise ValueError("dense_quantile_mid_dim must be > 0")
-        if not 0.0 <= dropout <= 1.0:
-            raise ValueError("dense_group_dropout must be in [0, 1]")
-
-        self.num_fids = int(num_fids)
-        self.segment_lengths = [int(length) for length in segment_lengths]
-        self.conv1 = nn.Conv1d(
-            in_channels=num_fids,
-            out_channels=mid_dim,
-            kernel_size=3,
-            padding=1,
-        )
-        self.conv2 = nn.Conv1d(
-            in_channels=mid_dim,
-            out_channels=d_model,
-            kernel_size=3,
-            padding=1,
-        )
-        self.dropout = nn.Dropout(dropout)
-        self.norm = nn.LayerNorm(d_model)
-        self.pool = nn.AdaptiveAvgPool1d(1)
-
-        # NOTE: USER_DENSE_GROUP_PROJECTOR - Start the quantile token as a
-        # conservative near-zero signal; training must earn its influence.
-        nn.init.zeros_(self.conv2.weight)
-        nn.init.zeros_(self.conv2.bias)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        expected_dim = sum(self.segment_lengths)
-        if x.shape[-1] != expected_dim:
-            raise ValueError(
-                f"QuantileTrendEncoder expected last dim {expected_dim}, "
-                f"got {x.shape[-1]}")
-
-        x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
-        segments = list(torch.split(x.float(), self.segment_lengths, dim=-1))
-        max_len = max(self.segment_lengths)
-        if any(seg.shape[-1] != max_len for seg in segments):
-            segments = [
-                F.pad(seg, (0, max_len - seg.shape[-1]))
-                for seg in segments
-            ]
-        trend = torch.stack(segments, dim=1)  # (B, num_fids, L)
-
-        out = self.conv1(trend)
-        out = F.silu(out)
-        out = self.dropout(out)
-        out = self.conv2(out)
-        out = self.pool(out).squeeze(-1)
-        return self.norm(out)
-
-
-class UserDenseGroupProjector(nn.Module):
-    """
-    Replace the original single user_dense token with 3 grouped dense tokens.
-
-    Groups:
-    1. emb group: fids 61, 87
-    2. stat group: fids 62, 63, 64, 65, 66
-    3. quantile group: fids 89, 90, 91
-
-    Output:
-       [B, 3, d_model]
-    """
-
-    # NOTE: USER_DENSE_GROUP_PROJECTOR - Keep dense feature semantics separated
-    # before forming NS tokens: pretrained embeddings, raw statistics, and
-    # compact trend vectors each get a dedicated projection path.
-    def __init__(
-        self,
-        user_dense_schema,
-        d_model: int,
-        emb_group_fids: Tuple[int, ...] = (61, 87),
-        stat_group_fids: Tuple[int, ...] = (62, 63, 64, 65, 66),
-        quantile_group_fids: Tuple[int, ...] = (89, 90, 91),
-        stat_log_clamp_max: float = 20.0,
-        quantile_mid_dim: int = 64,
-        dropout: float = 0.05,
-    ) -> None:
-        super().__init__()
-        if stat_log_clamp_max <= 0:
-            raise ValueError("dense_stat_log_clamp_max must be > 0")
-        if quantile_mid_dim <= 0:
-            raise ValueError("dense_quantile_mid_dim must be > 0")
-        if not 0.0 <= dropout <= 1.0:
-            raise ValueError("dense_group_dropout must be in [0, 1]")
-
-        self.d_model = d_model
-        self.stat_log_clamp_max = float(stat_log_clamp_max)
-        self.emb_spans = self._collect_spans(
-            user_dense_schema, emb_group_fids, 'emb')
-        self.stat_spans = self._collect_spans(
-            user_dense_schema, stat_group_fids, 'stat')
-        self.quantile_spans = self._collect_spans(
-            user_dense_schema, quantile_group_fids, 'quantile')
-
-        emb_dim_in = sum(length for _, _, length in self.emb_spans)
-        stat_dim_in = sum(length for _, _, length in self.stat_spans)
-        quantile_segment_lengths = [
-            length for _, _, length in self.quantile_spans]
-
-        self.emb_proj = (
-            nn.Sequential(nn.Linear(emb_dim_in, d_model), nn.LayerNorm(d_model))
-            if emb_dim_in > 0
-            else None
-        )
-        self.stat_proj = (
-            nn.Sequential(nn.Linear(stat_dim_in, d_model), nn.LayerNorm(d_model))
-            if stat_dim_in > 0
-            else None
-        )
-        self.quantile_encoder = (
-            QuantileTrendEncoder(
-                num_fids=len(self.quantile_spans),
-                segment_lengths=quantile_segment_lengths,
-                d_model=d_model,
-                mid_dim=quantile_mid_dim,
-                dropout=dropout,
-            )
-            if quantile_segment_lengths
-            else None
-        )
-        self.dropout = nn.Dropout(dropout)
-
-        logging.info(
-            "UserDenseGroupProjector emb spans: %s", self.emb_spans)
-        logging.info(
-            "UserDenseGroupProjector stat spans: %s", self.stat_spans)
-        logging.info(
-            "UserDenseGroupProjector quantile spans: %s",
-            self.quantile_spans)
-
-    def _collect_spans(
-        self,
-        user_dense_schema,
-        fids: Tuple[int, ...],
-        group_name: str,
-    ) -> List[Tuple[int, int, int]]:
-        spans: List[Tuple[int, int, int]] = []
-        missing_fids = []
-        for fid in fids:
-            span = _lookup_dense_span(user_dense_schema, fid)
-            if span is None:
-                missing_fids.append(fid)
-                continue
-            offset, length = span
-            if int(length) <= 0:
-                missing_fids.append(fid)
-                continue
-            spans.append((fid, int(offset), int(length)))
-        if missing_fids:
-            logging.warning(
-                "UserDenseGroupProjector %s group skipped unavailable fids: %s",
-                group_name,
-                missing_fids,
-            )
-        if not spans:
-            logging.warning(
-                "UserDenseGroupProjector %s group found no usable fids; "
-                "it will emit a zero token",
-                group_name,
-            )
-        return spans
-
-    def _zero_token(self, x: torch.Tensor) -> torch.Tensor:
-        return x.new_zeros(x.shape[0], self.d_model)
-
-    def _gather_spans(
-        self,
-        x: torch.Tensor,
-        spans: List[Tuple[int, int, int]],
-    ) -> torch.Tensor:
-        pieces = [
-            x[:, offset:offset + length]
-            for _, offset, length in spans
-        ]
-        return torch.cat(pieces, dim=-1)
-
-    def _build_emb_token(self, x: torch.Tensor) -> torch.Tensor:
-        if not self.emb_spans or self.emb_proj is None:
-            return self._zero_token(x)
-        pieces = []
-        for _, offset, length in self.emb_spans:
-            seg = x[:, offset:offset + length]
-            seg = torch.nan_to_num(seg, nan=0.0, posinf=0.0, neginf=0.0)
-            seg = F.normalize(seg.float(), p=2, dim=-1, eps=1e-6)
-            pieces.append(seg)
-        emb = torch.cat(pieces, dim=-1)
-        return F.silu(self.emb_proj(emb))
-
-    def _build_stat_token(self, x: torch.Tensor) -> torch.Tensor:
-        if not self.stat_spans or self.stat_proj is None:
-            return self._zero_token(x)
-        stat = self._gather_spans(x, self.stat_spans)
-        stat = torch.nan_to_num(stat, nan=0.0, posinf=0.0, neginf=0.0)
-        stat = torch.clamp(stat.float(), min=0.0)
-        stat = torch.log1p(stat)
-        stat = torch.clamp(stat, max=self.stat_log_clamp_max)
-        return F.silu(self.stat_proj(stat))
-
-    def _build_quantile_token(self, x: torch.Tensor) -> torch.Tensor:
-        if not self.quantile_spans or self.quantile_encoder is None:
-            return self._zero_token(x)
-        quantile = self._gather_spans(x, self.quantile_spans)
-        return F.silu(self.quantile_encoder(quantile))
-
-    def forward(self, user_dense_feats: torch.Tensor) -> torch.Tensor:
-        emb_token = self._build_emb_token(user_dense_feats)
-        stat_token = self._build_stat_token(user_dense_feats)
-        quantile_token = self._build_quantile_token(user_dense_feats)
-        tokens = torch.stack([emb_token, stat_token, quantile_token], dim=1)
-        return self.dropout(tokens)
-
-
-class UserDenseSmoothClip(nn.Module):
-    """Smooth clip + learnable affine transform for user dense features."""
-
-    # NOTE: USER_DENSE_SMOOTH_CLIP - Optional model-side stabilization for
-    # raw user_dense_feats; disabled by default to preserve baseline behavior.
-    def __init__(self, dim: int, clip_value: float = 3.0) -> None:
-        super().__init__()
-        self.clip_value = float(clip_value)
-        self.scale = nn.Parameter(torch.ones(1, dim))
-        self.bias = nn.Parameter(torch.zeros(1, dim))
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        c = self.clip_value
-        # NOTE: USER_DENSE_SMOOTH_CLIP - Avoid NaN / Inf propagating into
-        # Linear layers when raw dense values are extremely large or invalid.
-        clipped = torch.nan_to_num(x, nan=0.0, posinf=c, neginf=-c)
-        clipped = clipped / torch.sqrt(1.0 + (clipped / c) ** 2)
-        return self.scale * clipped + self.bias
-
-
 class PCVRHyFormer(nn.Module):
     """PCVRHyFormer model for post-click conversion rate prediction.
 
@@ -1579,8 +1207,6 @@ class PCVRHyFormer(nn.Module):
         # NS grouping config (grouped by fid index)
         user_ns_groups: List[List[int]],
         item_ns_groups: List[List[int]],
-        seq_feature_ids: Optional["dict[str, List[int]]"] = None,  # {domain: [fid_per_slot, ...]}
-        user_dense_schema_entries: Optional[List[Tuple[int, int, int]]] = None,
         # Model hyperparameters
         d_model: int = 64,
         emb_dim: int = 64,
@@ -1599,20 +1225,10 @@ class PCVRHyFormer(nn.Module):
         rope_base: float = 10000.0,
         emb_skip_threshold: int = 0,
         seq_id_threshold: int = 10000,
-        seq_hash_bucket_size: int = 0,
-        seq_hash_gate_init: float = -1.0,
-        seq_hash_allowlist: str = '',
         # NS tokenizer variant
         ns_tokenizer_type: str = 'rankmixer',
         user_ns_tokens: int = 0,
         item_ns_tokens: int = 0,
-        query_pooling: str = 'mean',
-        din_dropout: float = 0.0,
-        use_user_dense_smooth_clip: bool = False,
-        use_user_dense_group_projector: bool = False,
-        dense_stat_log_clamp_max: float = 20.0,
-        dense_quantile_mid_dim: int = 64,
-        dense_group_dropout: float = 0.05,
     ) -> None:
         super().__init__()
 
@@ -1627,32 +1243,7 @@ class PCVRHyFormer(nn.Module):
         self.use_rope = use_rope
         self.emb_skip_threshold = emb_skip_threshold
         self.seq_id_threshold = seq_id_threshold
-        self.seq_hash_bucket_size = int(seq_hash_bucket_size)
-        self.seq_hash_gate_init = float(seq_hash_gate_init)
-        self.seq_hash_allowlist_raw = seq_hash_allowlist or ''
-        self.seq_hash_allowlist = _parse_seq_hash_allowlist(self.seq_hash_allowlist_raw)
-        self.seq_feature_ids = seq_feature_ids or {
-            d: list(range(len(seq_vocab_sizes[d]))) for d in sorted(seq_vocab_sizes.keys())
-        }
         self.ns_tokenizer_type = ns_tokenizer_type
-        if query_pooling not in {'mean', 'mean_din'}:
-            raise ValueError(f"Unknown query_pooling: {query_pooling}")
-        if not 0.0 <= din_dropout <= 1.0:
-            raise ValueError("din_dropout must be in [0, 1]")
-        self.query_pooling = query_pooling
-        self.din_dropout = float(din_dropout)
-        # NOTE: USER_DENSE_SMOOTH_CLIP - Structural switch because enabling it
-        # adds learnable scale/bias parameters to the user dense path.
-        self.use_user_dense_smooth_clip = bool(use_user_dense_smooth_clip)
-        # NOTE: USER_DENSE_GROUP_PROJECTOR - Structural switch replacing the
-        # original single user_dense token with 3 grouped dense tokens.
-        self.use_user_dense_group_projector = bool(use_user_dense_group_projector)
-        if dense_stat_log_clamp_max <= 0:
-            raise ValueError("dense_stat_log_clamp_max must be > 0")
-        if dense_quantile_mid_dim <= 0:
-            raise ValueError("dense_quantile_mid_dim must be > 0")
-        if not 0.0 <= dense_group_dropout <= 1.0:
-            raise ValueError("dense_group_dropout must be in [0, 1]")
 
         # ================== NS Tokens Construction ==================
 
@@ -1706,38 +1297,11 @@ class PCVRHyFormer(nn.Module):
 
         # User dense feature projection (if available)
         self.has_user_dense = user_dense_dim > 0
-        self.user_dense_group_projector: Optional[UserDenseGroupProjector] = None
-        self.num_user_dense_tokens = 0
         if self.has_user_dense:
-            if self.use_user_dense_group_projector:
-                # NOTE: USER_DENSE_GROUP_PROJECTOR - This path replaces the
-                # single dense token; it intentionally skips global dense
-                # smooth clipping.
-                if self.use_user_dense_smooth_clip:
-                    logging.warning(
-                        "use_user_dense_smooth_clip is ignored when "
-                        "use_user_dense_group_projector=True")
-                self.user_dense_group_projector = UserDenseGroupProjector(
-                    user_dense_schema=user_dense_schema_entries,
-                    d_model=d_model,
-                    stat_log_clamp_max=dense_stat_log_clamp_max,
-                    quantile_mid_dim=dense_quantile_mid_dim,
-                    dropout=dense_group_dropout,
-                )
-                self.num_user_dense_tokens = 3
-            else:
-                # NOTE: USER_DENSE_SMOOTH_CLIP - Identity keeps the default
-                # path parameter-free and numerically identical.
-                self.user_dense_smooth_clip = (
-                    UserDenseSmoothClip(user_dense_dim)
-                    if self.use_user_dense_smooth_clip
-                    else nn.Identity()
-                )
-                self.user_dense_proj = nn.Sequential(
-                    nn.Linear(user_dense_dim, d_model),
-                    nn.LayerNorm(d_model),
-                )
-                self.num_user_dense_tokens = 1
+            self.user_dense_proj = nn.Sequential(
+                nn.Linear(user_dense_dim, d_model),
+                nn.LayerNorm(d_model),
+            )
 
         # Item dense feature projection (if available)
         self.has_item_dense = item_dense_dim > 0
@@ -1748,10 +1312,8 @@ class PCVRHyFormer(nn.Module):
             )
 
         # Total NS token count
-        self.num_ns = (num_user_ns + self.num_user_dense_tokens
+        self.num_ns = (num_user_ns + (1 if self.has_user_dense else 0)
                        + num_item_ns + (1 if self.has_item_dense else 0))
-        self.item_token_start = num_user_ns + self.num_user_dense_tokens
-        self.item_token_count = num_item_ns + (1 if self.has_item_dense else 0)
 
         # ================== Check d_model % T == 0 constraint (full mode only) ==================
         T = num_queries * self.num_sequences + self.num_ns
@@ -1769,44 +1331,18 @@ class PCVRHyFormer(nn.Module):
         # independent of emb_skip_threshold (which skips Embedding creation).
         self.seq_id_emb_dropout = nn.Dropout(dropout_rate * 2)
 
-        def _allow_hash(domain: str, fid: int, vs: int) -> bool:
-            if self.seq_hash_bucket_size <= 0:
-                return False
-            if int(vs) <= 0:
-                return False
-            if not (emb_skip_threshold > 0 and int(vs) > emb_skip_threshold):
-                return False
-            if "*" in self.seq_hash_allowlist:
-                return True
-            return fid in self.seq_hash_allowlist.get(domain, set())
-
-        def _make_seq_embs(domain: str, vocab_sizes: List[int], fids: List[int]):
+        def _make_seq_embs(vocab_sizes):
+            """Create embedding list, returning None for features skipped via
+            emb_skip_threshold or with no vocab info (vs<=0)."""
             embs_raw = []
-            hash_raw = []
-            hash_meta = []
-            for pos, vs in enumerate(vocab_sizes):
-                fid = int(fids[pos]) if pos < len(fids) else pos
+            for vs in vocab_sizes:
                 skip = int(vs) <= 0 or (emb_skip_threshold > 0 and int(vs) > emb_skip_threshold)
                 if skip:
                     embs_raw.append(None)
-                    if _allow_hash(domain, fid, int(vs)):
-                        # Preserve official RNG stream: extra hash module construction should not
-                        # perturb later baseline module initialization. Constructor weights are
-                        # overwritten in _init_params().
-                        rng_state = torch.get_rng_state()
-                        h_emb = nn.Embedding(self.seq_hash_bucket_size + 1, emb_dim, padding_idx=0)
-                        torch.set_rng_state(rng_state)
-                        hash_raw.append(h_emb)
-                        hash_meta.append((pos, fid, int(vs)))
-                    else:
-                        hash_raw.append(None)
                 else:
                     embs_raw.append(nn.Embedding(int(vs) + 1, emb_dim, padding_idx=0))
-                    hash_raw.append(None)
-
             module_list = nn.ModuleList([e for e in embs_raw if e is not None])
-            hash_module_list = nn.ModuleList([e for e in hash_raw if e is not None])
-
+            # Map from position index to real index in module_list (-1 if skipped)
             index_map = []
             real_idx = 0
             for e in embs_raw:
@@ -1815,46 +1351,23 @@ class PCVRHyFormer(nn.Module):
                     real_idx += 1
                 else:
                     index_map.append(-1)
-
-            hash_index_map = []
-            real_hash_idx = 0
-            for e in hash_raw:
-                if e is not None:
-                    hash_index_map.append(real_hash_idx)
-                    real_hash_idx += 1
-                else:
-                    hash_index_map.append(-1)
-
             is_id = [int(vs) > seq_id_threshold for vs in vocab_sizes]
-            return module_list, index_map, is_id, hash_module_list, hash_index_map, hash_meta
+            return module_list, index_map, is_id
 
         # ================== Dynamic Sequence Embeddings ==================
         self._seq_embs = nn.ModuleDict()
-        self._seq_emb_index = {}
-        self._seq_is_id = {}
-        self._seq_vocab_sizes = {}
-        self._seq_feature_ids = {}
+        self._seq_emb_index = {}    # domain -> index_map
+        self._seq_is_id = {}        # domain -> is_id list
+        self._seq_vocab_sizes = {}  # domain -> vocab_sizes list
         self._seq_proj = nn.ModuleDict()
-        self._seq_hash_embs = nn.ModuleDict()
-        self._seq_hash_emb_index = {}
-        self._seq_hash_meta = {}
-        self._seq_hash_gate_logits = nn.ParameterDict()
 
         for domain in self.seq_domains:
             vs = seq_vocab_sizes[domain]
-            fids = self.seq_feature_ids.get(domain, list(range(len(vs))))
-            embs, idx_map, is_id, h_embs, h_idx_map, h_meta = _make_seq_embs(domain, vs, fids)
+            embs, idx_map, is_id = _make_seq_embs(vs)
             self._seq_embs[domain] = embs
             self._seq_emb_index[domain] = idx_map
             self._seq_is_id[domain] = is_id
             self._seq_vocab_sizes[domain] = vs
-            self._seq_feature_ids[domain] = fids
-            self._seq_hash_embs[domain] = h_embs
-            self._seq_hash_emb_index[domain] = h_idx_map
-            self._seq_hash_meta[domain] = h_meta
-            if len(h_meta) > 0:
-                init = torch.full((len(h_meta),), float(self.seq_hash_gate_init), dtype=torch.float32)
-                self._seq_hash_gate_logits[domain] = nn.Parameter(init)
             self._seq_proj[domain] = nn.Sequential(
                 nn.Linear(len(vs) * emb_dim, d_model),
                 nn.LayerNorm(d_model),
@@ -1872,10 +1385,6 @@ class PCVRHyFormer(nn.Module):
             num_queries=num_queries,
             num_sequences=self.num_sequences,
             hidden_mult=hidden_mult,
-            query_pooling=query_pooling,
-            item_token_start=self.item_token_start,
-            item_token_count=self.item_token_count,
-            din_dropout=din_dropout,
         )
 
         # MultiSeqHyFormerBlock stack
@@ -1942,34 +1451,12 @@ class PCVRHyFormer(nn.Module):
                 if f > 0:
                     logging.info(f"emb_skip_threshold={emb_skip_threshold}: {name} skipped {f}/{t} features")
 
-        for domain in self.seq_domains:
-            meta = self._seq_hash_meta.get(domain, [])
-            if meta:
-                positions = [m[0] for m in meta]
-                fids = [m[1] for m in meta]
-                vocabs = [m[2] for m in meta]
-                gate = torch.sigmoid(self._seq_hash_gate_logits[domain].detach()).cpu().tolist()
-                gate = [round(float(x), 6) for x in gate]
-                logging.info(
-                    f"seq_hash_bucket_size={self.seq_hash_bucket_size}: {domain} hashed {len(meta)} fields; "
-                    f"positions={positions}; fids={fids}; orig_vocabs={vocabs}; "
-                    f"gate_init_logit={self.seq_hash_gate_init:.4f}; gate_init={gate}"
-                )
-
     def _init_params(self) -> None:
         """Applies Xavier initialization to all embedding weights."""
         for domain in self.seq_domains:
             for emb in self._seq_embs[domain]:
                 nn.init.xavier_normal_(emb.weight.data)
                 emb.weight.data[0, :] = 0
-
-        if hasattr(self, '_seq_hash_embs'):
-            rng_state = torch.get_rng_state()
-            for domain in self.seq_domains:
-                for emb in self._seq_hash_embs[domain]:
-                    nn.init.xavier_normal_(emb.weight.data)
-                    emb.weight.data[0, :] = 0
-            torch.set_rng_state(rng_state)
 
         for tokenizer in [self.user_ns_tokenizer, self.item_ns_tokenizer]:
             for emb in tokenizer.embs:
@@ -2016,19 +1503,6 @@ class PCVRHyFormer(nn.Module):
                 else:
                     skip_count += 1
 
-        if hasattr(self, '_seq_hash_embs'):
-            for domain in self.seq_domains:
-                meta = self._seq_hash_meta.get(domain, [])
-                for h_idx, (_pos, _fid, orig_vs) in enumerate(meta):
-                    emb = self._seq_hash_embs[domain][h_idx]
-                    if int(orig_vs) > cardinality_threshold:
-                        nn.init.xavier_normal_(emb.weight.data)
-                        emb.weight.data[0, :] = 0
-                        reinit_ptrs.add(emb.weight.data_ptr())
-                        reinit_count += 1
-                    else:
-                        skip_count += 1
-
         for tokenizer, specs in [
             (self.user_ns_tokenizer, self.user_ns_tokenizer.feature_specs),
             (self.item_ns_tokenizer, self.item_ns_tokenizer.feature_specs),
@@ -2069,7 +1543,6 @@ class PCVRHyFormer(nn.Module):
 
     def _embed_seq_domain(
         self,
-        domain: str,
         seq: torch.Tensor,
         sideinfo_embs: nn.ModuleList,
         proj: nn.Module,
@@ -2080,40 +1553,24 @@ class PCVRHyFormer(nn.Module):
         """Embeds a sequence domain by concatenating sideinfo embeddings and projecting to d_model."""
         B, S, L = seq.shape
         emb_list = []
-        hash_index = self._seq_hash_emb_index.get(domain, [])
-        hash_embs = self._seq_hash_embs[domain] if hasattr(self, '_seq_hash_embs') else []
-        gate_logits = self._seq_hash_gate_logits.get(domain, None) if hasattr(self, '_seq_hash_gate_logits') else None
-
         for i in range(S):
             real_idx = emb_index[i] if i < len(emb_index) else -1
-            if real_idx != -1:
+            if real_idx == -1:
+                # Feature skipped by emb_skip_threshold: output zero vector
+                emb_list.append(seq.new_zeros(B, L, self.emb_dim, dtype=torch.float))
+            else:
                 emb = sideinfo_embs[real_idx]
-                e = emb(seq[:, i, :])
+                e = emb(seq[:, i, :])  # (B, L, emb_dim)
                 if is_id[i] and self.training:
                     e = self.seq_id_emb_dropout(e)
                 emb_list.append(e)
-                continue
+        cat_emb = torch.cat(emb_list, dim=-1)  # (B, L, S*emb_dim)
+        token_emb = F.gelu(proj(cat_emb))  # (B, L, D)
 
-            h_idx = hash_index[i] if i < len(hash_index) else -1
-            if h_idx != -1 and gate_logits is not None:
-                raw = seq[:, i, :]
-                hashed = torch.where(
-                    raw > 0,
-                    torch.remainder(raw, self.seq_hash_bucket_size) + 1,
-                    torch.zeros_like(raw),
-                )
-                e = hash_embs[h_idx](hashed)
-                if is_id[i] and self.training:
-                    e = self.seq_id_emb_dropout(e)
-                gate = torch.sigmoid(gate_logits[h_idx]).view(1, 1, 1)
-                emb_list.append(e * gate)
-            else:
-                emb_list.append(seq.new_zeros(B, L, self.emb_dim, dtype=torch.float))
-
-        cat_emb = torch.cat(emb_list, dim=-1)
-        token_emb = F.gelu(proj(cat_emb))
+        # Add time bucket embedding (all-zero ids produce zero vectors via padding_idx=0)
         if self.num_time_buckets > 0:
             token_emb = token_emb + self.time_embedding(time_bucket_ids)
+
         return token_emb
 
     def _make_padding_mask(
@@ -2174,29 +1631,59 @@ class PCVRHyFormer(nn.Module):
 
         return output
 
-    def _build_user_dense_tokens(self, inputs: ModelInput) -> torch.Tensor:
-        """Projects user dense features into one or more NS tokens."""
-        if self.use_user_dense_group_projector:
-            if self.user_dense_group_projector is None:
-                raise RuntimeError(
-                    "user_dense_group_projector is not initialized")
-            return self.user_dense_group_projector(inputs.user_dense_feats)
+    def forward(self, inputs: ModelInput) -> torch.Tensor:
+        """Runs the forward pass of the PCVRHyFormer model."""
+        # 1. NS tokens: grouped projection
+        user_ns = self.user_ns_tokenizer(inputs.user_int_feats)   # (B, num_user_groups, D)
+        item_ns = self.item_ns_tokenizer(inputs.item_int_feats)   # (B, num_item_groups, D)
 
-        # NOTE: USER_DENSE_SMOOTH_CLIP - Apply the optional smooth clip on the
-        # dense projection path.
-        user_dense_feats = self.user_dense_smooth_clip(inputs.user_dense_feats)
-        user_dense_tok = F.silu(self.user_dense_proj(user_dense_feats))
-        return user_dense_tok.unsqueeze(1)
+        ns_parts = [user_ns]
+        if self.has_user_dense:
+            user_dense_tok = F.silu(self.user_dense_proj(inputs.user_dense_feats)).unsqueeze(1)  # (B, 1, D)
+            ns_parts.append(user_dense_tok)
+        ns_parts.append(item_ns)
+        if self.has_item_dense:
+            item_dense_tok = F.silu(self.item_dense_proj(inputs.item_dense_feats)).unsqueeze(1)  # (B, 1, D)
+            ns_parts.append(item_dense_tok)
 
-    def _forward_impl(self, inputs: ModelInput, apply_dropout: bool) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Shared train/eval forward path. Keeps predict() and forward() in sync."""
+        ns_tokens = torch.cat(ns_parts, dim=1)  # (B, num_ns, D)
+
+        # 2. Embed each sequence domain (dynamic)
+        seq_tokens_list = []
+        seq_masks_list = []
+        for domain in self.seq_domains:
+            tokens = self._embed_seq_domain(
+                inputs.seq_data[domain],
+                self._seq_embs[domain], self._seq_proj[domain],
+                self._seq_is_id[domain], self._seq_emb_index[domain],
+                inputs.seq_time_buckets[domain])
+            seq_tokens_list.append(tokens)
+            mask = self._make_padding_mask(inputs.seq_lens[domain], inputs.seq_data[domain].shape[2])
+            seq_masks_list.append(mask)
+
+        # 3. Generate independent Q tokens per sequence via MultiSeqQueryGenerator
+        q_tokens_list = self.query_generator(ns_tokens, seq_tokens_list, seq_masks_list)
+
+        # 4. Dropout + MultiSeqHyFormerBlock stack + output projection
+        output = self._run_multi_seq_blocks(
+            q_tokens_list, ns_tokens, seq_tokens_list, seq_masks_list,
+            apply_dropout=self.training
+        )
+
+        # 5. Classifier
+        logits = self.clsfier(output)  # (B, action_num)
+        return logits
+
+    def predict(self, inputs: ModelInput) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Runs inference without dropout, returning both logits and embeddings."""
+        # Reuses forward logic but without dropout
         user_ns = self.user_ns_tokenizer(inputs.user_int_feats)
         item_ns = self.item_ns_tokenizer(inputs.item_int_feats)
 
         ns_parts = [user_ns]
         if self.has_user_dense:
-            user_dense_toks = self._build_user_dense_tokens(inputs)
-            ns_parts.append(user_dense_toks)
+            user_dense_tok = F.silu(self.user_dense_proj(inputs.user_dense_feats)).unsqueeze(1)
+            ns_parts.append(user_dense_tok)
         ns_parts.append(item_ns)
         if self.has_item_dense:
             item_dense_tok = F.silu(self.item_dense_proj(inputs.item_dense_feats)).unsqueeze(1)
@@ -2208,7 +1695,6 @@ class PCVRHyFormer(nn.Module):
         seq_masks_list = []
         for domain in self.seq_domains:
             tokens = self._embed_seq_domain(
-                domain,
                 inputs.seq_data[domain],
                 self._seq_embs[domain], self._seq_proj[domain],
                 self._seq_is_id[domain], self._seq_emb_index[domain],
@@ -2218,34 +1704,11 @@ class PCVRHyFormer(nn.Module):
             seq_masks_list.append(mask)
 
         q_tokens_list = self.query_generator(ns_tokens, seq_tokens_list, seq_masks_list)
+
         output = self._run_multi_seq_blocks(
             q_tokens_list, ns_tokens, seq_tokens_list, seq_masks_list,
-            apply_dropout=apply_dropout,
+            apply_dropout=False
         )
+
         logits = self.clsfier(output)
         return logits, output
-
-    def forward(self, inputs: ModelInput) -> torch.Tensor:
-        logits, _ = self._forward_impl(inputs, apply_dropout=self.training)
-        return logits
-
-    def predict(self, inputs: ModelInput) -> Tuple[torch.Tensor, torch.Tensor]:
-        return self._forward_impl(inputs, apply_dropout=False)
-
-    def log_hash_gates(self, prefix: str = "HashGate") -> None:
-        if not hasattr(self, '_seq_hash_gate_logits') or len(self._seq_hash_gate_logits) == 0:
-            logging.info(f"{prefix}: no active hash-gate fields")
-            return
-        for domain in self.seq_domains:
-            meta = self._seq_hash_meta.get(domain, [])
-            if not meta or domain not in self._seq_hash_gate_logits:
-                continue
-            positions = [m[0] for m in meta]
-            fids = [m[1] for m in meta]
-            vocabs = [m[2] for m in meta]
-            gates = torch.sigmoid(self._seq_hash_gate_logits[domain].detach()).cpu().tolist()
-            gates = [round(float(x), 6) for x in gates]
-            logging.info(
-                f"{prefix}: {domain} positions={positions}, fids={fids}, "
-                f"orig_vocabs={vocabs}, gates={gates}"
-            )

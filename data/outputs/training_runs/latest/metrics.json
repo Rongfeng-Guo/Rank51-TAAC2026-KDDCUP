@@ -1,0 +1,50 @@
+{
+  "device": "cpu",
+  "model_type": "sequence-encoder",
+  "feature_mode": "dense-plus-sequence",
+  "input_dim": 115,
+  "dense_input_dim": 115,
+  "output_dim": 2,
+  "sequence_hidden_dim": 32,
+  "best_epoch": 1,
+  "best_valid_loss": 0.469821,
+  "checkpoint_path": "outputs\\training_runs\\latest\\best_model.pt",
+  "metrics_path": "outputs\\training_runs\\latest\\metrics.json",
+  "predictions_path": "outputs\\training_runs\\latest\\valid_predictions.parquet",
+  "batch_preview": {
+    "batch_size": 64,
+    "dense_features_shape": [
+      64,
+      115
+    ],
+    "sequence_summary_shape": [
+      64,
+      225
+    ],
+    "dense_plus_sequence_shape": [
+      64,
+      340
+    ],
+    "label_shape": [
+      64
+    ],
+    "first_sequence_name": "domain_a_seq_38",
+    "first_sequence_values_shape": [
+      64,
+      256
+    ],
+    "first_sequence_mask_shape": [
+      64,
+      256
+    ]
+  },
+  "training_log": [
+    {
+      "epoch": 1,
+      "train_loss": 0.396823,
+      "train_accuracy": 0.8725,
+      "valid_loss": 0.469821,
+      "valid_accuracy": 0.825
+    }
+  ]
+}

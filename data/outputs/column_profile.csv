@@ -1,0 +1,121 @@
+﻿column,category,description,dtype,value_mode,rows,missing_count,missing_ratio,unique_count,min,max,mean,std,len_mean,len_p95,len_max,example
+domain_a_seq_38,domain_a_seq,domain_a_seq 域行为序列特征（list<int64>）,object,list,1000,5,0.005,,,,,,701.086,1673.1499999999999,1888.0,"[np.int64(0), np.int64(0), np.int64(0), np.int64(764162), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]"
+domain_a_seq_39,domain_a_seq,domain_a_seq 域行为序列特征（list<int64>）,object,list,1000,5,0.005,,,,,,701.086,1673.1499999999999,1888.0,"[np.int64(1772695320), np.int64(1772626560), np.int64(1772603941), np.int64(1772553447), np.int64(1772541780), np.int64(1772461020), np.int64(1772459460), np.int64(1772233964)]"
+domain_a_seq_40,domain_a_seq,domain_a_seq 域行为序列特征（list<int64>）,object,list,1000,5,0.005,,,,,,701.086,1673.1499999999999,1888.0,"[np.int64(2), np.int64(2), np.int64(7), np.int64(7), np.int64(2), np.int64(2), np.int64(2), np.int64(12)]"
+domain_a_seq_41,domain_a_seq,domain_a_seq 域行为序列特征（list<int64>）,object,list,1000,5,0.005,,,,,,701.086,1673.1499999999999,1888.0,"[np.int64(6), np.int64(6), np.int64(11), np.int64(11), np.int64(6), np.int64(6), np.int64(6), np.int64(4)]"
+domain_a_seq_42,domain_a_seq,domain_a_seq 域行为序列特征（list<int64>）,object,list,1000,5,0.005,,,,,,701.086,1673.1499999999999,1888.0,"[np.int64(840), np.int64(840), np.int64(0), np.int64(143), np.int64(215), np.int64(840), np.int64(797), np.int64(778)]"
+domain_a_seq_43,domain_a_seq,domain_a_seq 域行为序列特征（list<int64>）,object,list,1000,5,0.005,,,,,,701.086,1673.1499999999999,1888.0,"[np.int64(1365), np.int64(2046), np.int64(0), np.int64(1405), np.int64(583), np.int64(2046), np.int64(1898), np.int64(0)]"
+domain_a_seq_44,domain_a_seq,domain_a_seq 域行为序列特征（list<int64>）,object,list,1000,5,0.005,,,,,,701.086,1673.1499999999999,1888.0,"[np.int64(3792), np.int64(5577), np.int64(0), np.int64(11037), np.int64(0), np.int64(5577), np.int64(0), np.int64(0)]"
+domain_a_seq_45,domain_a_seq,domain_a_seq 域行为序列特征（list<int64>）,object,list,1000,5,0.005,,,,,,701.086,1673.1499999999999,1888.0,"[np.int64(0), np.int64(0), np.int64(0), np.int64(3275), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]"
+domain_a_seq_46,domain_a_seq,domain_a_seq 域行为序列特征（list<int64>）,object,list,1000,5,0.005,,,,,,701.086,1673.1499999999999,1888.0,"[np.int64(12), np.int64(1), np.int64(0), np.int64(0), np.int64(1), np.int64(1), np.int64(14), np.int64(11)]"
+domain_b_seq_67,domain_b_seq,domain_b_seq 域行为序列特征（list<int64>）,object,list,1000,12,0.012,,,,,,570.758,1563.1499999999999,1952.0,"[np.int64(1772720154), np.int64(1772705768), np.int64(1772695970), np.int64(1772695956), np.int64(1772689874), np.int64(1772688611), np.int64(1772687891), np.int64(1772687287)]"
+domain_b_seq_68,domain_b_seq,domain_b_seq 域行为序列特征（list<int64>）,object,list,1000,12,0.012,,,,,,570.758,1563.1499999999999,1952.0,"[np.int64(6), np.int64(22), np.int64(6), np.int64(6), np.int64(6), np.int64(22), np.int64(22), np.int64(22)]"
+domain_b_seq_69,domain_b_seq,domain_b_seq 域行为序列特征（list<int64>）,object,list,1000,12,0.012,,,,,,570.758,1563.1499999999999,1952.0,"[np.int64(0), np.int64(58747653), np.int64(139495569), np.int64(139495569), np.int64(143086800), np.int64(58747653), np.int64(58747653), np.int64(58747653)]"
+domain_b_seq_70,domain_b_seq,domain_b_seq 域行为序列特征（list<int64>）,object,list,1000,12,0.012,,,,,,570.758,1563.1499999999999,1952.0,"[np.int64(0), np.int64(237), np.int64(471), np.int64(471), np.int64(96), np.int64(237), np.int64(237), np.int64(237)]"
+domain_b_seq_71,domain_b_seq,domain_b_seq 域行为序列特征（list<int64>）,object,list,1000,12,0.012,,,,,,570.758,1563.1499999999999,1952.0,"[np.int64(0), np.int64(1724), np.int64(0), np.int64(0), np.int64(0), np.int64(1724), np.int64(1724), np.int64(1724)]"
+domain_b_seq_72,domain_b_seq,domain_b_seq 域行为序列特征（list<int64>）,object,list,1000,12,0.012,,,,,,570.758,1563.1499999999999,1952.0,"[np.int64(0), np.int64(7339), np.int64(0), np.int64(0), np.int64(0), np.int64(7339), np.int64(7339), np.int64(7339)]"
+domain_b_seq_73,domain_b_seq,domain_b_seq 域行为序列特征（list<int64>）,object,list,1000,12,0.012,,,,,,570.758,1563.1499999999999,1952.0,"[np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]"
+domain_b_seq_74,domain_b_seq,domain_b_seq 域行为序列特征（list<int64>）,object,list,1000,12,0.012,,,,,,570.758,1563.1499999999999,1952.0,"[np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]"
+domain_b_seq_75,domain_b_seq,domain_b_seq 域行为序列特征（list<int64>）,object,list,1000,12,0.012,,,,,,570.758,1563.1499999999999,1952.0,"[np.int64(0), np.int64(0), np.int64(16), np.int64(16), np.int64(6), np.int64(0), np.int64(0), np.int64(0)]"
+domain_b_seq_76,domain_b_seq,domain_b_seq 域行为序列特征（list<int64>）,object,list,1000,12,0.012,,,,,,570.758,1563.1499999999999,1952.0,"[np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]"
+domain_b_seq_77,domain_b_seq,domain_b_seq 域行为序列特征（list<int64>）,object,list,1000,12,0.012,,,,,,570.758,1563.1499999999999,1952.0,"[np.int64(0), np.int64(0), np.int64(6), np.int64(6), np.int64(9), np.int64(0), np.int64(0), np.int64(0)]"
+domain_b_seq_78,domain_b_seq,domain_b_seq 域行为序列特征（list<int64>）,object,list,1000,12,0.012,,,,,,570.758,1563.1499999999999,1952.0,"[np.int64(0), np.int64(0), np.int64(1629), np.int64(1629), np.int64(1396), np.int64(0), np.int64(0), np.int64(0)]"
+domain_b_seq_79,domain_b_seq,domain_b_seq 域行为序列特征（list<int64>）,object,list,1000,12,0.012,,,,,,570.758,1563.1499999999999,1952.0,"[np.int64(0), np.int64(0), np.int64(10625), np.int64(10625), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]"
+domain_b_seq_88,domain_b_seq,domain_b_seq 域行为序列特征（list<int64>）,object,list,1000,12,0.012,,,,,,570.758,1563.1499999999999,1952.0,"[np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]"
+domain_c_seq_27,domain_c_seq,domain_c_seq 域行为序列特征（list<int64>）,object,list,1000,2,0.002,,,,,,449.431,1214.2499999999998,3894.0,"[np.int64(1772604104), np.int64(1772320822), np.int64(1772234064), np.int64(1771001044), np.int64(1770995005), np.int64(1770791113), np.int64(1770791079), np.int64(1770644055)]"
+domain_c_seq_28,domain_c_seq,domain_c_seq 域行为序列特征（list<int64>）,object,list,1000,2,0.002,,,,,,449.431,1214.2499999999998,3894.0,"[np.int64(31), np.int64(31), np.int64(31), np.int64(31), np.int64(31), np.int64(48), np.int64(31), np.int64(10)]"
+domain_c_seq_29,domain_c_seq,domain_c_seq 域行为序列特征（list<int64>）,object,list,1000,2,0.002,,,,,,449.431,1214.2499999999998,3894.0,"[np.int64(4981970), np.int64(287196), np.int64(255139), np.int64(425092), np.int64(1819562), np.int64(5851938), np.int64(5851938), np.int64(4085610)]"
+domain_c_seq_30,domain_c_seq,domain_c_seq 域行为序列特征（list<int64>）,object,list,1000,2,0.002,,,,,,449.431,1214.2499999999998,3894.0,"[np.int64(316), np.int64(810), np.int64(693), np.int64(693), np.int64(318), np.int64(643), np.int64(643), np.int64(71)]"
+domain_c_seq_31,domain_c_seq,domain_c_seq 域行为序列特征（list<int64>）,object,list,1000,2,0.002,,,,,,449.431,1214.2499999999998,3894.0,"[np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(2075)]"
+domain_c_seq_32,domain_c_seq,domain_c_seq 域行为序列特征（list<int64>）,object,list,1000,2,0.002,,,,,,449.431,1214.2499999999998,3894.0,"[np.int64(2), np.int64(2), np.int64(2), np.int64(2), np.int64(2), np.int64(2), np.int64(2), np.int64(2)]"
+domain_c_seq_33,domain_c_seq,domain_c_seq 域行为序列特征（list<int64>）,object,list,1000,2,0.002,,,,,,449.431,1214.2499999999998,3894.0,"[np.int64(1), np.int64(1), np.int64(1), np.int64(1), np.int64(1), np.int64(1), np.int64(1), np.int64(1)]"
+domain_c_seq_34,domain_c_seq,domain_c_seq 域行为序列特征（list<int64>）,object,list,1000,2,0.002,,,,,,449.431,1214.2499999999998,3894.0,"[np.int64(16197), np.int64(318279), np.int64(747893), np.int64(789853), np.int64(47432), np.int64(789853), np.int64(789853), np.int64(789853)]"
+domain_c_seq_35,domain_c_seq,domain_c_seq 域行为序列特征（list<int64>）,object,list,1000,2,0.002,,,,,,449.431,1214.2499999999998,3894.0,"[np.int64(1706), np.int64(1006), np.int64(2734), np.int64(2734), np.int64(128), np.int64(1932), np.int64(1932), np.int64(97)]"
+domain_c_seq_36,domain_c_seq,domain_c_seq 域行为序列特征（list<int64>）,object,list,1000,2,0.002,,,,,,449.431,1214.2499999999998,3894.0,"[np.int64(767838), np.int64(0), np.int64(0), np.int64(0), np.int64(604919), np.int64(0), np.int64(0), np.int64(102119)]"
+domain_c_seq_37,domain_c_seq,domain_c_seq 域行为序列特征（list<int64>）,object,list,1000,2,0.002,,,,,,449.431,1214.2499999999998,3894.0,"[np.int64(6252), np.int64(0), np.int64(2928), np.int64(6747), np.int64(3578), np.int64(0), np.int64(0), np.int64(8612)]"
+domain_c_seq_47,domain_c_seq,domain_c_seq 域行为序列特征（list<int64>）,object,list,1000,2,0.002,,,,,,449.431,1214.2499999999998,3894.0,"[np.int64(225864377), np.int64(80211853), np.int64(100281065), np.int64(20753754), np.int64(106973665), np.int64(71727095), np.int64(71727095), np.int64(98860153)]"
+domain_d_seq_17,domain_d_seq,domain_d_seq 域行为序列特征（list<int64>）,object,list,1000,80,0.08,,,,,,1099.859,2451.1,3951.0,"[np.int64(3), np.int64(3), np.int64(3), np.int64(3), np.int64(3), np.int64(3), np.int64(3), np.int64(3)]"
+domain_d_seq_18,domain_d_seq,domain_d_seq 域行为序列特征（list<int64>）,object,list,1000,80,0.08,,,,,,1099.859,2451.1,3951.0,"[np.int64(51), np.int64(193), np.int64(310), np.int64(310), np.int64(114), np.int64(227), np.int64(18), np.int64(831)]"
+domain_d_seq_19,domain_d_seq,domain_d_seq 域行为序列特征（list<int64>）,object,list,1000,80,0.08,,,,,,1099.859,2451.1,3951.0,"[np.int64(0), np.int64(0), np.int64(1258), np.int64(1258), np.int64(143), np.int64(1599), np.int64(1475), np.int64(951)]"
+domain_d_seq_20,domain_d_seq,domain_d_seq 域行为序列特征（list<int64>）,object,list,1000,80,0.08,,,,,,1099.859,2451.1,3951.0,"[np.int64(0), np.int64(0), np.int64(188), np.int64(188), np.int64(1807), np.int64(0), np.int64(5762), np.int64(0)]"
+domain_d_seq_21,domain_d_seq,domain_d_seq 域行为序列特征（list<int64>）,object,list,1000,80,0.08,,,,,,1099.859,2451.1,3951.0,"[np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]"
+domain_d_seq_22,domain_d_seq,domain_d_seq 域行为序列特征（list<int64>）,object,list,1000,80,0.08,,,,,,1099.859,2451.1,3951.0,"[np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]"
+domain_d_seq_23,domain_d_seq,domain_d_seq 域行为序列特征（list<int64>）,object,list,1000,80,0.08,,,,,,1099.859,2451.1,3951.0,"[np.int64(217882), np.int64(290672), np.int64(117875), np.int64(117875), np.int64(90767), np.int64(0), np.int64(469016), np.int64(283767)]"
+domain_d_seq_24,domain_d_seq,domain_d_seq 域行为序列特征（list<int64>）,object,list,1000,80,0.08,,,,,,1099.859,2451.1,3951.0,"[np.int64(0), np.int64(0), np.int64(67), np.int64(0), np.int64(0), np.int64(548), np.int64(511), np.int64(231)]"
+domain_d_seq_25,domain_d_seq,domain_d_seq 域行为序列特征（list<int64>）,object,list,1000,80,0.08,,,,,,1099.859,2451.1,3951.0,"[np.int64(2), np.int64(2), np.int64(2), np.int64(14), np.int64(2), np.int64(7), np.int64(12), np.int64(2)]"
+domain_d_seq_26,domain_d_seq,domain_d_seq 域行为序列特征（list<int64>）,object,list,1000,80,0.08,,,,,,1099.859,2451.1,3951.0,"[np.int64(1772723880), np.int64(1772721120), np.int64(1772721120), np.int64(1772720940), np.int64(1772719800), np.int64(1772719740), np.int64(1772719260), np.int64(1772719200)]"
+item_id,id,物料/内容唯一标识,int64,scalar,1000,0,0.0,837.0,6854.0,278202253.0,112417687.394,78049933.90720263,,,,103989760
+user_id,id,用户唯一标识,int64,scalar,1000,0,0.0,1000.0,2727076.0,12728427.0,7835799.336,2878292.024180056,,,,3864676
+item_int_feats_10,item_int,物料侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,2,0.002,110.0,2.0,309.0,150.00701402805612,89.7171739049374,,,,64.0
+item_int_feats_11,item_int,物料侧离散/计数型特征（int 或 list<int>）,object,list,1000,439,0.439,,,,,,2.086,9.0,20.0,"[np.int64(2980), np.int64(2770)]"
+item_int_feats_12,item_int,物料侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,2,0.002,352.0,0.0,2777.0,1039.3807615230462,779.5380648176332,,,,0.0
+item_int_feats_13,item_int,物料侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,2,0.002,8.0,1.0,8.0,4.456913827655311,2.5068338050300145,,,,6.0
+item_int_feats_16,item_int,物料侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,2,0.002,662.0,2.0,35259.0,12356.10120240481,8033.661240969017,,,,18629.0
+item_int_feats_5,item_int,物料侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,2,0.002,82.0,4.0,325.0,118.45190380761522,78.53449257766698,,,,161.0
+item_int_feats_6,item_int,物料侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,2,0.002,216.0,0.0,977.0,419.0731462925852,245.47259980460203,,,,893.0
+item_int_feats_7,item_int,物料侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,2,0.002,349.0,0.0,2806.0,1052.8657314629259,744.9771109232922,,,,0.0
+item_int_feats_8,item_int,物料侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,2,0.002,226.0,-1.0,2431.0,463.7124248496994,667.1476586654993,,,,0.0
+item_int_feats_81,item_int,物料侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,2,0.002,3.0,0.0,2.0,0.5080160320641283,0.7659040996909036,,,,0.0
+item_int_feats_83,item_int,物料侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,832,0.832,22.0,1.0,31.0,17.595238095238095,9.171149182314235,,,,29.0
+item_int_feats_84,item_int,物料侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,832,0.832,66.0,3.0,226.0,131.13095238095238,67.53169974553833,,,,134.0
+item_int_feats_85,item_int,物料侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,832,0.832,103.0,4.0,1001.0,439.8154761904762,302.7998049922501,,,,873.0
+item_int_feats_9,item_int,物料侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,2,0.002,24.0,3.0,37.0,21.171342685370742,9.568218329700217,,,,30.0
+label_type,label,监督标签（当前任务二分类标签）,int32,scalar,1000,0,0.0,2.0,1.0,2.0,1.124,0.3295815528818323,,,,1
+label_time,time,标签事件时间（用于时序切分）,int64,scalar,1000,0,0.0,553.0,1772725027.0,1772725910.0,1772725503.904,196.39115250947535,,,,1772725413
+timestamp,time,样本记录时间戳,int64,scalar,1000,0,0.0,501.0,1772725000.0,1772725781.0,1772725275.446,193.77814397913917,,,,1772725140
+user_dense_feats_61,user_dense,用户侧稠密向量特征（list<float>）,object,list,1000,2,0.002,,,,,,255.488,256.0,256.0,"[np.float32(0.10862021), np.float32(-0.020586327), np.float32(0.09290086), np.float32(0.029013816), np.float32(-0.036376655), np.float32(0.040550303), np.float32(0.047041714), np.float32(0.040784705)]"
+user_dense_feats_62,user_dense,用户侧稠密向量特征（list<float>）,object,list,1000,70,0.07,,,,,,2.114,4.0,5.0,"[np.float32(31722.5), np.float32(6254.6665)]"
+user_dense_feats_63,user_dense,用户侧稠密向量特征（list<float>）,object,list,1000,70,0.07,,,,,,2.555,6.0,11.0,"[np.float32(60427.0), np.float32(17337.0), np.float32(3018.0), np.float32(713.5)]"
+user_dense_feats_64,user_dense,用户侧稠密向量特征（list<float>）,object,list,1000,70,0.07,,,,,,3.822,9.0,18.0,"[np.float32(31722.5), np.float32(17337.0), np.float32(713.5)]"
+user_dense_feats_65,user_dense,用户侧稠密向量特征（list<float>）,object,list,1000,80,0.08,,,,,,5.713,17.0,49.0,"[np.float32(17337.0), np.float32(3018.0), np.float32(1129.0), np.float32(298.0)]"
+user_dense_feats_66,user_dense,用户侧稠密向量特征（list<float>）,object,list,1000,86,0.086,,,,,,7.139,21.049999999999955,66.0,"[np.float32(17337.0), np.float32(3018.0), np.float32(1129.0), np.float32(298.0)]"
+user_dense_feats_87,user_dense,用户侧稠密向量特征（list<float>）,object,list,1000,15,0.015,,,,,,315.2,320.0,320.0,"[np.float32(-0.1093), np.float32(-0.0052), np.float32(0.0193), np.float32(-0.197), np.float32(0.0865), np.float32(0.0533), np.float32(0.2245), np.float32(0.0311)]"
+user_dense_feats_89,user_dense,用户侧稠密向量特征（list<float>）,object,list,1000,55,0.055,,,,,,9.45,10.0,10.0,"[np.float32(-0.0044), np.float32(-0.1074), np.float32(0.1108), np.float32(0.7048), np.float32(0.2637), np.float32(-0.5479), np.float32(-0.3195), np.float32(-0.0867)]"
+user_dense_feats_90,user_dense,用户侧稠密向量特征（list<float>）,object,list,1000,91,0.091,,,,,,9.09,10.0,10.0,"[np.float32(-0.0042), np.float32(-0.096), np.float32(0.0853), np.float32(0.6986), np.float32(0.2819), np.float32(-0.5583), np.float32(-0.312), np.float32(-0.0827)]"
+user_dense_feats_91,user_dense,用户侧稠密向量特征（list<float>）,object,list,1000,450,0.45,,,,,,5.5,10.0,10.0,"[np.float32(-0.0065), np.float32(-0.2164), np.float32(0.3663), np.float32(0.7118), np.float32(0.0537), np.float32(-0.396), np.float32(-0.3708), np.float32(-0.1218)]"
+user_int_feats_1,user_int,用户侧离散/计数型特征（int 或 list<int>）,int64,scalar,1000,0,0.0,3.0,1.0,4.0,3.381,1.1695464933041353,,,,4
+user_int_feats_100,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,845,0.845,2.0,1.0,2.0,1.9548387096774194,0.20765776696040109,,,,2.0
+user_int_feats_101,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,910,0.91,2.0,2.0,3.0,2.9555555555555557,0.20608041101101565,,,,3.0
+user_int_feats_102,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,877,0.877,2.0,1.0,3.0,1.1300813008130082,0.4931951508326211,,,,1.0
+user_int_feats_103,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,862,0.862,3.0,1.0,3.0,2.717391304347826,0.5515344922634211,,,,3.0
+user_int_feats_104,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,372,0.372,3.0,1.0,3.0,2.359872611464968,0.9295817751902151,,,,3.0
+user_int_feats_105,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,309,0.309,3.0,1.0,3.0,2.2865412445730824,0.47095806157907916,,,,2.0
+user_int_feats_106,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,160,0.16,3.0,1.0,3.0,1.7595238095238095,0.4301492121011055,,,,2.0
+user_int_feats_107,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,300,0.3,2.0,1.0,2.0,1.0942857142857143,0.2922258003109016,,,,1.0
+user_int_feats_108,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,516,0.516,6.0,2.0,7.0,5.454545454545454,1.687337381206417,,,,6.0
+user_int_feats_109,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,854,0.854,7.0,1.0,7.0,2.993150684931507,2.3597555461462583,,,,1.0
+user_int_feats_15,user_int,用户侧离散/计数型特征（int 或 list<int>）,object,list,1000,139,0.139,,,,,,3.232,8.0,13.0,"[np.int64(928), np.int64(556), np.int64(538), np.int64(739), np.int64(94)]"
+user_int_feats_3,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,30,0.03,341.0,9.0,1839.0,987.5567010309278,516.7840357136608,,,,1753.0
+user_int_feats_4,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,30,0.03,268.0,1.0,986.0,498.8134020618557,299.2419274777365,,,,6.0
+user_int_feats_48,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,2,0.002,52.0,3.0,99.0,58.0060120240481,27.5431518595198,,,,42.0
+user_int_feats_49,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,7,0.007,2.0,1.0,2.0,1.5820745216515608,0.4932177743103623,,,,2.0
+user_int_feats_50,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,4,0.004,2.0,0.0,1.0,0.9979919678714859,0.04476605785061838,,,,1.0
+user_int_feats_51,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,1,0.001,5.0,40.0,150.0,56.15715715715716,3.579544589161046,,,,56.0
+user_int_feats_52,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,1,0.001,36.0,5.0,174.0,93.85585585585585,56.31318156223198,,,,24.0
+user_int_feats_53,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,1,0.001,264.0,3.0,557.0,288.54154154154156,165.28444262240478,,,,101.0
+user_int_feats_54,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,368,0.368,462.0,3.0,2843.0,1476.7832278481012,838.0318142413928,,,,810.0
+user_int_feats_55,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,19,0.019,13.0,8.0,41.0,29.68195718654434,9.644378536322998,,,,41.0
+user_int_feats_56,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,19,0.019,405.0,1.0,1434.0,752.65749235474,405.37181296384875,,,,681.0
+user_int_feats_57,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,31,0.031,105.0,2.0,250.0,126.58823529411765,67.58019129754327,,,,111.0
+user_int_feats_58,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,150,0.15,2.0,1.0,2.0,1.6988235294117646,0.4587692275559131,,,,1.0
+user_int_feats_59,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,150,0.15,8.0,1.0,14.0,8.370588235294118,4.5478197369576545,,,,3.0
+user_int_feats_60,user_int,用户侧离散/计数型特征（int 或 list<int>）,object,list,1000,592,0.592,,,,,,0.617,2.0,2.0,[np.int64(2)]
+user_int_feats_62,user_int,用户侧离散/计数型特征（int 或 list<int>）,object,list,1000,70,0.07,,,,,,2.114,4.0,5.0,"[np.int64(6), np.int64(4)]"
+user_int_feats_63,user_int,用户侧离散/计数型特征（int 或 list<int>）,object,list,1000,70,0.07,,,,,,2.555,6.0,11.0,"[np.int64(9), np.int64(15), np.int64(45), np.int64(36)]"
+user_int_feats_64,user_int,用户侧离散/计数型特征（int 或 list<int>）,object,list,1000,70,0.07,,,,,,3.822,9.0,18.0,"[np.int64(2), np.int64(50), np.int64(23)]"
+user_int_feats_65,user_int,用户侧离散/计数型特征（int 或 list<int>）,object,list,1000,80,0.08,,,,,,5.713,17.0,49.0,"[np.int64(46), np.int64(94), np.int64(166), np.int64(183)]"
+user_int_feats_66,user_int,用户侧离散/计数型特征（int 或 list<int>）,object,list,1000,86,0.086,,,,,,7.139,21.049999999999955,66.0,"[np.int64(649), np.int64(63), np.int64(1383), np.int64(18)]"
+user_int_feats_80,user_int,用户侧离散/计数型特征（int 或 list<int>）,object,list,1000,200,0.2,,,,,,1.158,3.0,5.0,"[np.int64(8), np.int64(6)]"
+user_int_feats_82,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,204,0.204,23.0,1.0,23.0,9.096733668341708,6.5600771677363205,,,,18.0
+user_int_feats_86,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,692,0.692,61.0,2.0,245.0,105.47402597402598,74.1767543357859,,,,37.0
+user_int_feats_89,user_int,用户侧离散/计数型特征（int 或 list<int>）,object,list,1000,55,0.055,,,,,,9.45,10.0,10.0,"[np.int64(0), np.int64(9), np.int64(9), np.int64(2), np.int64(2), np.int64(8), np.int64(2), np.int64(3)]"
+user_int_feats_90,user_int,用户侧离散/计数型特征（int 或 list<int>）,object,list,1000,91,0.091,,,,,,9.09,10.0,10.0,"[np.int64(0), np.int64(9), np.int64(2), np.int64(5), np.int64(4), np.int64(3), np.int64(3), np.int64(2)]"
+user_int_feats_91,user_int,用户侧离散/计数型特征（int 或 list<int>）,object,list,1000,450,0.45,,,,,,5.5,10.0,10.0,"[np.int64(0), np.int64(4), np.int64(9), np.int64(3), np.int64(5), np.int64(4), np.int64(6), np.int64(9)]"
+user_int_feats_92,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,494,0.494,2.0,1.0,2.0,1.5,0.5,,,,1.0
+user_int_feats_93,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,171,0.171,36.0,1.0,37.0,14.667068757539203,8.462370476748394,,,,3.0
+user_int_feats_94,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,521,0.521,6.0,1.0,6.0,3.77035490605428,2.1011673063816305,,,,1.0
+user_int_feats_95,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,318,0.318,3.0,1.0,3.0,2.7580645161290325,0.43840661431373584,,,,3.0
+user_int_feats_96,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,678,0.678,3.0,1.0,3.0,1.8167701863354038,0.40259037407454346,,,,1.0
+user_int_feats_97,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,292,0.292,3.0,1.0,3.0,1.5988700564971752,0.8814464678981097,,,,3.0
+user_int_feats_98,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,103,0.103,3.0,1.0,3.0,2.677814938684504,0.5877687883717292,,,,3.0
+user_int_feats_99,user_int,用户侧离散/计数型特征（int 或 list<int>）,float64,scalar,1000,812,0.812,2.0,1.0,3.0,2.9361702127659575,0.35154705620975124,,,,3.0

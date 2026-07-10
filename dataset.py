@@ -131,27 +131,6 @@ BUCKET_BOUNDARIES = np.array([
 # ``--use_time_buckets`` and derive the concrete bucket count from here.
 NUM_TIME_BUCKETS = len(BUCKET_BOUNDARIES) + 1
 
-# NOTE: PERIODIC_TIME_NS - sample-level timestamps are converted into small
-# cyclical categorical IDs and appended as synthetic user_int features. These
-# reserved fids intentionally live outside schema.json so the raw parquet schema
-# stays unchanged while train.py/infer.py can still group them into User NS.
-PERIODIC_TIME_NS_FIDS = (1_200_001, 1_200_002, 1_200_003, 1_200_004)
-PERIODIC_TIME_NS_VOCAB_SIZES = (24, 7, 2, 4)
-PERIODIC_TIME_NS_LOCAL_OFFSET_SECONDS = 8 * 60 * 60
-
-# NOTE: SEQ_PERIODIC_HOUR_DAY_SIDEINFO - optional sequence event local hour and
-# weekday exposed as ordinary synthetic categorical side-info slots.
-SEQ_PERIODIC_HOUR_FID = 1_400_001
-SEQ_PERIODIC_DAY_FID = 1_400_002
-SEQ_PERIODIC_HOUR_VOCAB_SIZE = 24
-SEQ_PERIODIC_DAY_VOCAB_SIZE = 7
-
-# NOTE: ITEM_ID_FEATURE - raw parquet item_id can be appended as a synthetic
-# hashed item-side categorical feature at runtime, without modifying
-# schema.json.
-ITEM_ID_FEATURE_FID = 1_300_001
-ITEM_ID_HASH_BUCKETS_DEFAULT = 50_000
-
 
 class PCVRParquetDataset(IterableDataset):
     """PCVR dataset that reads raw multi-column Parquet directly.
@@ -172,15 +151,8 @@ class PCVRParquetDataset(IterableDataset):
         shuffle: bool = True,
         buffer_batches: int = 20,
         row_group_range: Optional[Tuple[int, int]] = None,
-        timestamp_min: Optional[int] = None,
-        timestamp_max: Optional[int] = None,
-        num_rows_override: Optional[int] = None,
         clip_vocab: bool = True,
         is_training: bool = True,
-        use_periodic_time_ns: bool = False,
-        use_seq_periodic_hour_day_sideinfo: bool = False,
-        use_item_id_feature: bool = False,
-        item_id_hash_buckets: int = ITEM_ID_HASH_BUCKETS_DEFAULT,
     ) -> None:
         """
         Args:
@@ -195,24 +167,9 @@ class PCVRParquetDataset(IterableDataset):
             buffer_batches: shuffle buffer size in units of batches.
             row_group_range: ``(start, end)`` slice of Row Groups; ``None`` to
                 use all Row Groups.
-            timestamp_min/timestamp_max: optional row-level timestamp filter.
-                Used to delete the oldest rows by primary timestamp while preserving
-                the original batch conversion/model interface.
-            num_rows_override: estimated rows after timestamp filtering; only used
-                for DataLoader length/progress estimates.
             clip_vocab: if True, clip out-of-bound ids to 0; if False, raise.
             is_training: if True, derive ``label`` from ``label_type == 2``;
                 if False, return an all-zeros label column.
-            use_periodic_time_ns: if True, append synthetic categorical
-                hour/day/weekend/time-of-day fields derived from timestamp to
-                user_int_feats for User NS consumption.
-            use_seq_periodic_hour_day_sideinfo: if True, append per-event
-                hour-of-day and day-of-week as synthetic sequence side-info
-                features.
-            use_item_id_feature: if True, append a synthetic hashed item_id
-                scalar slot to item_int_feats for Item NS consumption.
-            item_id_hash_buckets: number of positive hash buckets used by the
-                synthetic item_id feature when enabled.
         """
         super().__init__()
 
@@ -229,24 +186,8 @@ class PCVRParquetDataset(IterableDataset):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.buffer_batches = buffer_batches
-        self.timestamp_min = timestamp_min
-        self.timestamp_max = timestamp_max
-        self._num_rows_override = num_rows_override
         self.clip_vocab = clip_vocab
         self.is_training = is_training
-        # NOTE: PERIODIC_TIME_NS - default off preserves historical schema
-        # dimensions; enabling appends four timestamp-derived categorical slots
-        # to user_int_feats without reading any extra parquet columns.
-        self.use_periodic_time_ns = use_periodic_time_ns
-        self.use_seq_periodic_hour_day_sideinfo = bool(
-            use_seq_periodic_hour_day_sideinfo)
-        # NOTE: ITEM_ID_FEATURE - default off preserves historical item_int
-        # dimensions; enabling appends one hashed raw-item_id slot to the item
-        # side without changing schema.json.
-        self.use_item_id_feature = use_item_id_feature
-        self.item_id_hash_buckets = int(item_id_hash_buckets)
-        if self.use_item_id_feature and self.item_id_hash_buckets <= 0:
-            raise ValueError('item_id_hash_buckets must be > 0 when item_id feature is enabled')
         # Out-of-bound statistics:
         #   {(group, col_idx): {'count': N, 'max': M, 'min_oob': M, 'vocab': V}}
         self._oob_stats: Dict[Tuple[str, int], Dict[str, int]] = {}
@@ -262,8 +203,7 @@ class PCVRParquetDataset(IterableDataset):
             start, end = row_group_range
             self._rg_list = self._rg_list[start:end]
 
-        raw_num_rows = sum(r[2] for r in self._rg_list)
-        self.num_rows = int(num_rows_override) if num_rows_override is not None else raw_num_rows
+        self.num_rows = sum(r[2] for r in self._rg_list)
 
         # Load schema.json.
         self._load_schema(schema_path, seq_max_lens or {})
@@ -296,38 +236,12 @@ class PCVRParquetDataset(IterableDataset):
             self._user_int_plan.append((ci, dim, offset, vs))
             offset += dim
 
-        # NOTE: PERIODIC_TIME_NS - the synthetic time features are appended to
-        # user_int_schema during _load_schema, so the slice can be filled
-        # directly after timestamp is read for each batch.
-        if self.use_periodic_time_ns:
-            self._periodic_time_ns_offset, _ = self.user_int_schema.get_offset_length(
-                PERIODIC_TIME_NS_FIDS[0])
-        else:
-            self._periodic_time_ns_offset = None
-
         self._item_int_plan = []
         offset = 0
         for fid, vs, dim in self._item_int_cols:
             ci = self._col_idx.get(f'item_int_feats_{fid}')
             self._item_int_plan.append((ci, dim, offset, vs))
             offset += dim
-
-        # NOTE: ITEM_ID_FEATURE - the synthetic hashed item_id slot is
-        # appended to item_int_schema during _load_schema, then filled from the
-        # raw parquet item_id column at batch-conversion time.
-        if self.use_item_id_feature:
-            self._item_id_feature_col_idx = self._col_idx.get('item_id')
-            if self._item_id_feature_col_idx is None:
-                raise KeyError(
-                    'item_id column is missing from parquet schema; '
-                    '--use_item_id_feature requires raw parquet item_id')
-            self._item_id_feature_offset, _ = self.item_int_schema.get_offset_length(
-                ITEM_ID_FEATURE_FID)
-            self._item_id_feature_vocab_size = self.item_id_hash_buckets + 1
-        else:
-            self._item_id_feature_col_idx = None
-            self._item_id_feature_offset = None
-            self._item_id_feature_vocab_size = 0
 
         self._user_dense_plan = []
         offset = 0
@@ -344,43 +258,16 @@ class PCVRParquetDataset(IterableDataset):
             ts_fid = self.ts_fids[domain]
             side_plan = []
             for slot, fid in enumerate(sideinfo_fids):
-                if fid in {SEQ_PERIODIC_HOUR_FID, SEQ_PERIODIC_DAY_FID}:
-                    ci = None
-                else:
-                    ci = self._col_idx.get(f'{prefix}_{fid}')
+                ci = self._col_idx.get(f'{prefix}_{fid}')
                 vs = self.seq_vocab_sizes[domain][fid]
-                side_plan.append((ci, slot, vs, fid))
+                side_plan.append((ci, slot, vs))
             ts_ci = self._col_idx.get(f'{prefix}_{ts_fid}') if ts_fid is not None else None
             self._seq_plan[domain] = (side_plan, ts_ci)
 
         logging.info(
             f"PCVRParquetDataset: {self.num_rows} rows from "
             f"{len(self._parquet_files)} file(s), batch_size={batch_size}, "
-            f"buffer_batches={buffer_batches}, shuffle={shuffle}, "
-            f"timestamp_min={timestamp_min}, timestamp_max={timestamp_max}")
-        if self.use_periodic_time_ns:
-            logging.info(
-                "Periodic time NS enabled: appended synthetic user_int fids=%s",
-                PERIODIC_TIME_NS_FIDS,
-            )
-        if self.use_seq_periodic_hour_day_sideinfo:
-            logging.info(
-                "Sequence hour/day side-info enabled: hour_fid=%s, day_fid=%s",
-                SEQ_PERIODIC_HOUR_FID,
-                SEQ_PERIODIC_DAY_FID,
-            )
-            for domain in self.seq_domains:
-                logging.info(
-                    "Sequence domain %s sideinfo_fids=%s",
-                    domain,
-                    self.sideinfo_fids[domain],
-                )
-        if self.use_item_id_feature:
-            logging.info(
-                "Item id feature enabled: appended synthetic item_int fid=%s, hash_buckets=%s",
-                ITEM_ID_FEATURE_FID,
-                self.item_id_hash_buckets,
-            )
+            f"buffer_batches={buffer_batches}, shuffle={shuffle}")
 
     def _load_schema(self, schema_path: str, seq_max_lens: Dict[str, int]) -> None:
         """Populate per-group schema information from ``schema_path``."""
@@ -395,14 +282,6 @@ class PCVRParquetDataset(IterableDataset):
             self.user_int_schema.add(fid, dim)
             self.user_int_vocab_sizes.extend([vs] * dim)
 
-        # NOTE: PERIODIC_TIME_NS - append four timestamp-derived categorical
-        # slots after all real user_int features. Values emitted at runtime
-        # are 1-based so 0 remains padding.
-        if self.use_periodic_time_ns:
-            for fid, vocab_size in zip(PERIODIC_TIME_NS_FIDS, PERIODIC_TIME_NS_VOCAB_SIZES):
-                self.user_int_schema.add(fid, 1)
-                self.user_int_vocab_sizes.append(vocab_size)
-
         # ---- item_int ----
         self._item_int_cols: List[List[int]] = raw['item_int']
         self.item_int_schema: FeatureSchema = FeatureSchema()
@@ -410,13 +289,6 @@ class PCVRParquetDataset(IterableDataset):
         for fid, vs, dim in self._item_int_cols:
             self.item_int_schema.add(fid, dim)
             self.item_int_vocab_sizes.extend([vs] * dim)
-
-        # NOTE: ITEM_ID_FEATURE - append one hashed raw-item_id categorical
-        # slot after all real item_int features. The hash emits positive ids
-        # so 0 remains padding.
-        if self.use_item_id_feature:
-            self.item_int_schema.add(ITEM_ID_FEATURE_FID, 1)
-            self.item_int_vocab_sizes.append(self.item_id_hash_buckets + 1)
 
         # ---- user_dense: [[fid, dim], ...] ----
         self._user_dense_cols: List[List[int]] = raw['user_dense']
@@ -449,22 +321,10 @@ class PCVRParquetDataset(IterableDataset):
             self.seq_vocab_sizes[domain] = {fid: vs for fid, vs in cfg['features']}
 
             sideinfo = [fid for fid in all_fids if fid != ts_fid]
-            domain_vocab_sizes = [
+            self.sideinfo_fids[domain] = sideinfo
+            self.seq_domain_vocab_sizes[domain] = [
                 self.seq_vocab_sizes[domain][fid] for fid in sideinfo
             ]
-            if self.use_seq_periodic_hour_day_sideinfo:
-                self.seq_vocab_sizes[domain][SEQ_PERIODIC_HOUR_FID] = (
-                    SEQ_PERIODIC_HOUR_VOCAB_SIZE
-                )
-                self.seq_vocab_sizes[domain][SEQ_PERIODIC_DAY_FID] = (
-                    SEQ_PERIODIC_DAY_VOCAB_SIZE
-                )
-                sideinfo.append(SEQ_PERIODIC_HOUR_FID)
-                sideinfo.append(SEQ_PERIODIC_DAY_FID)
-                domain_vocab_sizes.append(SEQ_PERIODIC_HOUR_VOCAB_SIZE)
-                domain_vocab_sizes.append(SEQ_PERIODIC_DAY_VOCAB_SIZE)
-            self.sideinfo_fids[domain] = sideinfo
-            self.seq_domain_vocab_sizes[domain] = domain_vocab_sizes
 
             # max_len: from seq_max_lens arg; unspecified domains fall back to 256.
             self._seq_maxlen[domain] = seq_max_lens.get(domain, 256)
@@ -486,9 +346,6 @@ class PCVRParquetDataset(IterableDataset):
             pf = pq.ParquetFile(file_path)
             for batch in pf.iter_batches(batch_size=self.batch_size, row_groups=[rg_idx]):
                 batch_dict = self._convert_batch(batch)
-                batch_dict = self._filter_batch_by_timestamp(batch_dict)
-                if batch_dict is None:
-                    continue
                 if self.shuffle and self.buffer_batches > 1:
                     buffer.append(batch_dict)
                     if len(buffer) >= self.buffer_batches:
@@ -502,38 +359,6 @@ class PCVRParquetDataset(IterableDataset):
 
         del buffer
         gc.collect()
-
-    def _filter_batch_by_timestamp(self, batch: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Filter a converted batch by primary sample timestamp.
-
-        This keeps the dataset/model interface unchanged. Metadata keys such as
-        ``_seq_domains`` are batch-level and must not be row-filtered even when
-        their list length happens to equal the batch size.
-        """
-        if self.timestamp_min is None and self.timestamp_max is None:
-            return batch
-        ts = batch['timestamp']
-        mask = torch.ones(ts.shape[0], dtype=torch.bool)
-        if self.timestamp_min is not None:
-            mask &= ts >= int(self.timestamp_min)
-        if self.timestamp_max is not None:
-            mask &= ts <= int(self.timestamp_max)
-        if bool(mask.all()):
-            return batch
-        keep = int(mask.sum().item())
-        if keep == 0:
-            return None
-        idx = mask.nonzero(as_tuple=False).squeeze(1)
-        out: Dict[str, Any] = {}
-        B = ts.shape[0]
-        for k, v in batch.items():
-            if isinstance(v, torch.Tensor) and v.shape[:1] == (B,):
-                out[k] = v.index_select(0, idx)
-            elif k == 'user_id' and isinstance(v, list) and len(v) == B:
-                out[k] = [v[int(i)] for i in idx.tolist()]
-            else:
-                out[k] = v
-        return out
 
     def _flush_buffer(
         self, buffer: List[Dict[str, Any]]
@@ -677,66 +502,6 @@ class PCVRParquetDataset(IterableDataset):
 
         return padded
 
-    def _build_periodic_time_ns_feats(
-        self,
-        timestamps: "npt.NDArray[np.int64]",
-    ) -> "npt.NDArray[np.int64]":
-        """Build 1-based periodic timestamp categorical IDs for User NS."""
-        # NOTE: PERIODIC_TIME_NS - timestamp is Unix seconds; add the fixed
-        # Asia/Shanghai offset before deriving local hour and weekday.
-        local_seconds = timestamps + PERIODIC_TIME_NS_LOCAL_OFFSET_SECONDS
-        local_days = np.floor_divide(local_seconds, 86400)
-        seconds_of_day = np.mod(local_seconds, 86400)
-
-        hour_of_day = np.floor_divide(seconds_of_day, 3600)
-        day_of_week = np.mod(local_days + 3, 7)
-        is_weekend = (day_of_week >= 5).astype(np.int64)
-        time_of_day_bucket = np.floor_divide(hour_of_day, 6)
-
-        return np.stack([
-            hour_of_day + 1,
-            day_of_week + 1,
-            is_weekend + 1,
-            time_of_day_bucket + 1,
-        ], axis=1).astype(np.int64, copy=False)
-
-    def _build_seq_hour_day_feats(
-        self,
-        timestamps: "npt.NDArray[np.int64]",
-    ) -> "Tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]":
-        """Build per-event local hour and weekday IDs with shape [B, L]."""
-        timestamps = np.asarray(timestamps, dtype=np.int64)
-        valid = timestamps > 0
-        local_seconds = timestamps + PERIODIC_TIME_NS_LOCAL_OFFSET_SECONDS
-        local_days = np.floor_divide(local_seconds, 86400)
-        seconds_of_day = np.mod(local_seconds, 86400)
-
-        hour0 = np.floor_divide(seconds_of_day, 3600).astype(np.int64, copy=False)
-        day0 = np.mod(local_days + 3, 7).astype(np.int64, copy=False)
-
-        hour_ids = (hour0 + 1).astype(np.int64, copy=False)
-        day_ids = (day0 + 1).astype(np.int64, copy=False)
-        hour_ids[~valid] = 0
-        day_ids[~valid] = 0
-        return hour_ids, day_ids
-
-    def _hash_item_id_column(
-        self,
-        arrow_col: "pa.Array",
-    ) -> "npt.NDArray[np.int64]":
-        """Hash raw item_id values into positive synthetic categorical ids."""
-        null_mask = arrow_col.is_null().to_numpy(zero_copy_only=False).astype(bool, copy=False)
-        arr = arrow_col.fill_null(0).to_numpy(zero_copy_only=False).astype(np.int64)
-        valid_mask = (~null_mask) & (arr > 0)
-        if valid_mask.any():
-            # NOTE: ITEM_ID_FEATURE - use 1-based hash buckets so the result
-            # can flow through the ordinary categorical encoder with 0 kept as
-            # padding and <=0 still treated as missing/unknown.
-            arr[valid_mask] = (
-                np.remainder(arr[valid_mask] - 1, self.item_id_hash_buckets) + 1)
-        arr[~valid_mask] = 0
-        return arr
-
     def _convert_batch(self, batch: "pa.RecordBatch") -> Dict[str, Any]:
         """Convert an Arrow RecordBatch into a training-ready dict of tensors."""
         B = batch.num_rows
@@ -776,14 +541,6 @@ class PCVRParquetDataset(IterableDataset):
                     padded[:] = 0
                 user_int[:, offset:offset + dim] = padded
 
-        if self.use_periodic_time_ns:
-            # NOTE: PERIODIC_TIME_NS - append cyclic sample-time categories to
-            # the user side so NS tokenizers see them as ordinary categorical
-            # embeddings, never as raw continuous timestamps.
-            offset = self._periodic_time_ns_offset
-            user_int[:, offset:offset + len(PERIODIC_TIME_NS_FIDS)] = (
-                self._build_periodic_time_ns_feats(timestamps))
-
         # ---- item_int ----
         item_int = self._buf_item_int[:B]
         item_int[:] = 0
@@ -804,20 +561,6 @@ class PCVRParquetDataset(IterableDataset):
                 else:
                     padded[:] = 0
                 item_int[:, offset:offset + dim] = padded
-
-        if self.use_item_id_feature:
-            # NOTE: ITEM_ID_FEATURE - materialize raw parquet item_id as a
-            # hashed synthetic item_int scalar so the model reuses the existing
-            # Item NS tokenizer path without any dedicated model input field.
-            item_id_arr = self._hash_item_id_column(
-                batch.column(self._item_id_feature_col_idx))
-            self._record_oob(
-                'item_int',
-                self._item_id_feature_col_idx,
-                item_id_arr,
-                self._item_id_feature_vocab_size,
-            )
-            item_int[:, self._item_id_feature_offset] = item_id_arr
 
         # ---- user_dense ----
         user_dense = self._buf_user_dense[:B]
@@ -852,19 +595,11 @@ class PCVRParquetDataset(IterableDataset):
             # Fused path: first collect (offsets, values, vocab_size, col_idx)
             # for every side-info column, then fill the buffer in a single pass.
             col_data = []
-            seq_periodic_hour_slots = []
-            seq_periodic_day_slots = []
-            for ci, slot, vs, fid in side_plan:
-                if fid == SEQ_PERIODIC_HOUR_FID:
-                    seq_periodic_hour_slots.append(slot)
-                    continue
-                if fid == SEQ_PERIODIC_DAY_FID:
-                    seq_periodic_day_slots.append(slot)
-                    continue
+            for ci, slot, vs in side_plan:
                 col = batch.column(ci)
-                col_data.append((col.offsets.to_numpy(), col.values.to_numpy(), vs, ci, slot))
+                col_data.append((col.offsets.to_numpy(), col.values.to_numpy(), vs, ci))
 
-            for offs, vals, _vs, _ci, slot in col_data:
+            for c, (offs, vals, vs, ci) in enumerate(col_data):
                 for i in range(B):
                     s = int(offs[i])
                     e = int(offs[i + 1])
@@ -872,7 +607,7 @@ class PCVRParquetDataset(IterableDataset):
                     if rl <= 0:
                         continue
                     ul = min(rl, max_len)
-                    out[i, slot, :ul] = vals[s:s + ul]
+                    out[i, c, :ul] = vals[s:s + ul]
                     if ul > lengths[i]:
                         lengths[i] = ul
 
@@ -882,13 +617,14 @@ class PCVRParquetDataset(IterableDataset):
             # Check out-of-bound values per feature's vocab_size.
             # vs==0 means no vocab info; force the whole slice to 0 so that
             # the model's 1-slot Embedding is never indexed out of range.
-            for _offs, _vals, vs, ci, slot in col_data:
-                slice_c = out[:, slot, :]
+            for c, (_, _, vs, ci) in enumerate(col_data):
+                slice_c = out[:, c, :]
                 if vs > 0:
                     self._record_oob(f'seq_{domain}', ci, slice_c, vs)
                 else:
                     slice_c[:] = 0
 
+            result[domain] = torch.from_numpy(out.copy())
             result[f'{domain}_len'] = torch.from_numpy(lengths.copy())
 
             # Time bucketing.
@@ -927,63 +663,11 @@ class PCVRParquetDataset(IterableDataset):
                 buckets = raw_buckets.reshape(B, max_len) + 1
                 buckets[ts_padded == 0] = 0
                 time_bucket[:] = buckets
-                if seq_periodic_hour_slots or seq_periodic_day_slots:
-                    hour_ids, day_ids = self._build_seq_hour_day_feats(ts_padded)
-                    seq_valid_mask = (
-                        np.arange(max_len, dtype=np.int64)[None, :] < lengths[:, None]
-                    )
-                    valid_mask_int = seq_valid_mask.astype(np.int64, copy=False)
-                    hour_ids *= valid_mask_int
-                    day_ids *= valid_mask_int
-                    for slot in seq_periodic_hour_slots:
-                        out[:, slot, :] = hour_ids
-                    for slot in seq_periodic_day_slots:
-                        out[:, slot, :] = day_ids
 
-            result[domain] = torch.from_numpy(out.copy())
             result[f'{domain}_time_bucket'] = torch.from_numpy(time_bucket.copy())
 
         return result
 
-
-
-def _collect_primary_timestamps(
-    rg_info: List[Tuple[str, int, int]],
-    max_sample_size: int = 0,
-) -> np.ndarray:
-    """Collect/sample primary timestamps from row groups for recent-window split.
-
-    max_sample_size <= 0 means exact scan. For the competition scale (~1M rows)
-    exact scan of one int64 column is cheap and avoids quantile jitter.
-    """
-    chunks: List[np.ndarray] = []
-    for file_path, rg_idx, _ in rg_info:
-        pf = pq.ParquetFile(file_path)
-        if 'timestamp' not in pf.schema_arrow.names:
-            raise KeyError("timestamp column not found in parquet data")
-        arr = pf.read_row_group(rg_idx, columns=['timestamp']).column('timestamp')
-        chunks.append(arr.fill_null(0).to_numpy(zero_copy_only=False).astype(np.int64))
-    if not chunks:
-        return np.zeros(0, dtype=np.int64)
-    ts = np.concatenate(chunks)
-    if max_sample_size and max_sample_size > 0 and ts.size > max_sample_size:
-        rng = np.random.default_rng(2026)
-        idx = rng.choice(ts.size, size=max_sample_size, replace=False)
-        ts = ts[idx]
-    return ts
-
-
-def _count_rows_ge_timestamp(
-    rg_info: List[Tuple[str, int, int]],
-    threshold: int,
-) -> int:
-    total = 0
-    for file_path, rg_idx, _ in rg_info:
-        pf = pq.ParquetFile(file_path)
-        arr = pf.read_row_group(rg_idx, columns=['timestamp']).column('timestamp')
-        ts = arr.fill_null(0).to_numpy(zero_copy_only=False).astype(np.int64)
-        total += int((ts >= threshold).sum())
-    return total
 
 def get_pcvr_data(
     data_dir: str,
@@ -991,27 +675,18 @@ def get_pcvr_data(
     batch_size: int = 256,
     valid_ratio: float = 0.1,
     train_ratio: float = 1.0,
-    split_mode: str = 'row_group_tail',
     num_workers: int = 16,
     buffer_batches: int = 20,
     shuffle_train: bool = True,
     seed: int = 42,
     clip_vocab: bool = True,
     seq_max_lens: Optional[Dict[str, int]] = None,
-    train_recent_ratio: float = 1.0,
-    split_sample_size: int = 0,
-    use_periodic_time_ns: bool = False,
-    use_seq_periodic_hour_day_sideinfo: bool = False,
-    use_item_id_feature: bool = False,
-    item_id_hash_buckets: int = ITEM_ID_HASH_BUCKETS_DEFAULT,
     **kwargs: Any,
 ) -> Tuple[DataLoader, DataLoader, PCVRParquetDataset]:
     """Create train / valid DataLoaders from raw multi-column Parquet files.
 
     The validation split is taken as the last ``valid_ratio`` fraction of Row
-    Groups (in the file order returned by ``glob``). Optionally, training rows
-    are further filtered to keep only the latest ``train_recent_ratio`` by the
-    primary timestamp. Validation remains the original tail split.
+    Groups (in the file order returned by ``glob``).
 
     Returns:
         A tuple ``(train_loader, valid_loader, train_dataset)``. The third
@@ -1031,159 +706,31 @@ def get_pcvr_data(
             rg_info.append((f, i, pf.metadata.row_group(i).num_rows))
     total_rgs = len(rg_info)
 
-    split_mode = 'row_group_tail' if split_mode == 'row_group' else split_mode
-    if split_mode not in ('row_group_tail', 'overlap_tail'):
-        raise ValueError(f"unknown split_mode={split_mode!r}")
+    n_valid_rgs = max(1, int(total_rgs * valid_ratio))
+    n_train_rgs = total_rgs - n_valid_rgs
 
-    if split_mode == 'overlap_tail':
-        # True overlap-tail mode for final-fit style training:
-        #   train = all row groups, row-level filtered to latest train_recent_ratio by primary timestamp
-        #   valid = all row groups, row-level filtered to latest valid_ratio by primary timestamp
-        # so the validation monitor is included in the training stream.  This is intentionally
-        # a monitor, not a disjoint validation set.
-        if not (0.0 < train_recent_ratio <= 1.0):
-            raise ValueError(f"train_recent_ratio must be in (0,1], got {train_recent_ratio}")
-        if not (0.0 < valid_ratio <= 1.0):
-            raise ValueError(f"valid_ratio must be in (0,1], got {valid_ratio}")
+    # train_ratio: use only the first N% of the training Row Groups.
+    if train_ratio < 1.0:
+        n_train_rgs = max(1, int(n_train_rgs * train_ratio))
+        logging.info(f"train_ratio={train_ratio}: using {n_train_rgs} train Row Groups")
 
-        ts_sample = _collect_primary_timestamps(rg_info, max_sample_size=split_sample_size)
-        if ts_sample.size == 0:
-            raise ValueError('no timestamps available for overlap_tail split')
+    train_rows = sum(r[2] for r in rg_info[:n_train_rgs])
+    valid_rows = sum(r[2] for r in rg_info[n_train_rgs:])
 
-        def _lower_quantile_threshold(keep_ratio: float) -> int:
-            q = max(0.0, min(1.0, 1.0 - float(keep_ratio)))
-            kth = int(np.floor(q * (ts_sample.size - 1)))
-            return int(np.partition(ts_sample, kth)[kth])
+    logging.info(f"Row Group split: {n_train_rgs} train ({train_rows} rows), "
+                 f"{n_valid_rgs} valid ({valid_rows} rows)")
 
-        train_timestamp_min = _lower_quantile_threshold(train_recent_ratio)
-        valid_timestamp_min = _lower_quantile_threshold(valid_ratio)
-        raw_rows = sum(r[2] for r in rg_info)
-        train_rows_after_recent = _count_rows_ge_timestamp(rg_info, train_timestamp_min)
-        valid_rows_after_recent = _count_rows_ge_timestamp(rg_info, valid_timestamp_min)
+    train_dataset = PCVRParquetDataset(
+        parquet_path=data_dir,
+        schema_path=schema_path,
+        batch_size=batch_size,
+        seq_max_lens=seq_max_lens,
+        shuffle=shuffle_train,
+        buffer_batches=buffer_batches,
+        row_group_range=(0, n_train_rgs),
+        clip_vocab=clip_vocab,
+    )
 
-        logging.info(
-            f"Overlap-tail timestamp split: raw_rows={raw_rows}; "
-            f"train keeps latest {train_recent_ratio:.4f} (delete_oldest={1.0-train_recent_ratio:.4f}), "
-            f"train_timestamp_min={train_timestamp_min}, train_rows={train_rows_after_recent}; "
-            f"valid monitor keeps latest {valid_ratio:.4f}, valid_timestamp_min={valid_timestamp_min}, "
-            f"valid_rows={valid_rows_after_recent}; valid is included in train")
-
-        train_dataset = PCVRParquetDataset(
-            parquet_path=data_dir,
-            schema_path=schema_path,
-            batch_size=batch_size,
-            seq_max_lens=seq_max_lens,
-            shuffle=shuffle_train,
-            buffer_batches=buffer_batches,
-            row_group_range=None,
-            timestamp_min=train_timestamp_min,
-            num_rows_override=train_rows_after_recent,
-            clip_vocab=clip_vocab,
-            # NOTE: PERIODIC_TIME_NS - train/valid must expose the same
-            # synthetic timestamp categorical slots so model specs stay aligned.
-            use_periodic_time_ns=use_periodic_time_ns,
-            use_seq_periodic_hour_day_sideinfo=use_seq_periodic_hour_day_sideinfo,
-            # NOTE: ITEM_ID_FEATURE - train/valid must expose the same
-            # synthetic hashed item_id slot so item_int specs stay aligned.
-            use_item_id_feature=use_item_id_feature,
-            item_id_hash_buckets=item_id_hash_buckets,
-        )
-
-        valid_dataset = PCVRParquetDataset(
-            parquet_path=data_dir,
-            schema_path=schema_path,
-            batch_size=batch_size,
-            seq_max_lens=seq_max_lens,
-            shuffle=False,
-            buffer_batches=0,
-            row_group_range=None,
-            timestamp_min=valid_timestamp_min,
-            num_rows_override=valid_rows_after_recent,
-            clip_vocab=clip_vocab,
-            # NOTE: PERIODIC_TIME_NS - validation mirrors training-side
-            # synthetic timestamp categorical features.
-            use_periodic_time_ns=use_periodic_time_ns,
-            use_seq_periodic_hour_day_sideinfo=use_seq_periodic_hour_day_sideinfo,
-            # NOTE: ITEM_ID_FEATURE - validation mirrors the training-side
-            # hashed raw item_id feature.
-            use_item_id_feature=use_item_id_feature,
-            item_id_hash_buckets=item_id_hash_buckets,
-        )
-
-        train_rows = train_rows_after_recent
-        valid_rows = valid_rows_after_recent
-    else:
-        n_valid_rgs = max(1, int(total_rgs * valid_ratio))
-        n_train_rgs = total_rgs - n_valid_rgs
-
-        # train_ratio: use only the first N% of the training Row Groups.
-        if train_ratio < 1.0:
-            n_train_rgs = max(1, int(n_train_rgs * train_ratio))
-            logging.info(f"train_ratio={train_ratio}: using {n_train_rgs} train Row Groups")
-
-        train_rows_raw = sum(r[2] for r in rg_info[:n_train_rgs])
-        valid_rows = sum(r[2] for r in rg_info[n_train_rgs:])
-
-        timestamp_min = None
-        train_rows_after_recent = train_rows_raw
-        if train_recent_ratio < 1.0:
-            if not (0.0 < train_recent_ratio <= 1.0):
-                raise ValueError(f"train_recent_ratio must be in (0,1], got {train_recent_ratio}")
-            ts_sample = _collect_primary_timestamps(rg_info, max_sample_size=split_sample_size)
-            q = max(0.0, min(1.0, 1.0 - float(train_recent_ratio)))
-            if ts_sample.size == 0:
-                raise ValueError('no timestamps available for train_recent_ratio split')
-            kth = int(np.floor(q * (ts_sample.size - 1)))
-            timestamp_min = int(np.partition(ts_sample, kth)[kth])
-            train_rows_after_recent = _count_rows_ge_timestamp(rg_info[:n_train_rgs], timestamp_min)
-            logging.info(
-                f"Recent timestamp filter enabled: keep latest {train_recent_ratio:.4f} rows; "
-                f"delete_oldest_ratio={1.0 - train_recent_ratio:.4f}; timestamp_min={timestamp_min}; "
-                f"estimated train rows after filter={train_rows_after_recent}/{train_rows_raw}")
-
-        logging.info(f"Row Group split: {n_train_rgs} train ({train_rows_raw} raw rows, {train_rows_after_recent} after recent filter), "
-                     f"{n_valid_rgs} valid ({valid_rows} rows)")
-
-        train_dataset = PCVRParquetDataset(
-            parquet_path=data_dir,
-            schema_path=schema_path,
-            batch_size=batch_size,
-            seq_max_lens=seq_max_lens,
-            shuffle=shuffle_train,
-            buffer_batches=buffer_batches,
-            row_group_range=(0, n_train_rgs),
-            timestamp_min=timestamp_min,
-            num_rows_override=train_rows_after_recent if timestamp_min is not None else None,
-            clip_vocab=clip_vocab,
-            # NOTE: PERIODIC_TIME_NS - train/valid must expose the same
-            # synthetic timestamp categorical slots so model specs stay aligned.
-            use_periodic_time_ns=use_periodic_time_ns,
-            use_seq_periodic_hour_day_sideinfo=use_seq_periodic_hour_day_sideinfo,
-            # NOTE: ITEM_ID_FEATURE - train/valid must expose the same
-            # synthetic hashed item_id slot so item_int specs stay aligned.
-            use_item_id_feature=use_item_id_feature,
-            item_id_hash_buckets=item_id_hash_buckets,
-        )
-
-        valid_dataset = PCVRParquetDataset(
-            parquet_path=data_dir,
-            schema_path=schema_path,
-            batch_size=batch_size,
-            seq_max_lens=seq_max_lens,
-            shuffle=False,
-            buffer_batches=0,
-            row_group_range=(n_train_rgs, total_rgs),
-            clip_vocab=clip_vocab,
-            # NOTE: PERIODIC_TIME_NS - validation mirrors training-side
-            # synthetic timestamp categorical features.
-            use_periodic_time_ns=use_periodic_time_ns,
-            use_seq_periodic_hour_day_sideinfo=use_seq_periodic_hour_day_sideinfo,
-            # NOTE: ITEM_ID_FEATURE - validation mirrors the training-side
-            # hashed raw item_id feature.
-            use_item_id_feature=use_item_id_feature,
-            item_id_hash_buckets=item_id_hash_buckets,
-        )
-        train_rows = train_rows_after_recent
     use_cuda = torch.cuda.is_available()
     _train_kw = {}
     if num_workers > 0:
@@ -1195,6 +742,16 @@ def get_pcvr_data(
         num_workers=num_workers, pin_memory=use_cuda, **_train_kw,
     )
 
+    valid_dataset = PCVRParquetDataset(
+        parquet_path=data_dir,
+        schema_path=schema_path,
+        batch_size=batch_size,
+        seq_max_lens=seq_max_lens,
+        shuffle=False,
+        buffer_batches=0,
+        row_group_range=(n_train_rgs, total_rgs),
+        clip_vocab=clip_vocab,
+    )
     valid_loader = DataLoader(
         valid_dataset, batch_size=None,
         num_workers=0, pin_memory=use_cuda,

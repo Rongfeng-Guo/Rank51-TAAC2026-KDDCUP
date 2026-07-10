@@ -1,0 +1,533 @@
+{
+  "sequence_group_count": 45,
+  "sequence_length_preset": "balanced",
+  "default_target_length": 50,
+  "sequence_length_overrides": {
+    "domain_a_seq": 256,
+    "domain_b_seq": 256,
+    "domain_c_seq": 512,
+    "domain_d_seq": 1024
+  },
+  "available_presets": {
+    "compact": {
+      "domain_a_seq": 128,
+      "domain_b_seq": 128,
+      "domain_c_seq": 256,
+      "domain_d_seq": 256
+    },
+    "balanced": {
+      "domain_a_seq": 256,
+      "domain_b_seq": 256,
+      "domain_c_seq": 512,
+      "domain_d_seq": 1024
+    },
+    "long_context": {
+      "domain_a_seq": 512,
+      "domain_b_seq": 512,
+      "domain_c_seq": 1024,
+      "domain_d_seq": 1536
+    }
+  },
+  "preset_descriptions": {
+    "compact": "Lower-memory preset for quick experiments with shorter history windows.",
+    "balanced": "Recommended preset that relaxes truncation for all four behavior domains.",
+    "long_context": "Long-history preset for offline experiments that can afford larger sequence windows."
+  },
+  "sequence_columns": {
+    "domain_a_seq_38": {
+      "tensor_column": "domain_a_seq_38_tensor",
+      "mask_column": "domain_a_seq_38_mask",
+      "length_column": "domain_a_seq_38_len",
+      "target_length": 256,
+      "resolved_from": "domain_a_seq",
+      "observed_max_length": 1888,
+      "observed_mean_length": 701.086,
+      "truncated_rows": 719,
+      "empty_rows": 5
+    },
+    "domain_a_seq_39": {
+      "tensor_column": "domain_a_seq_39_tensor",
+      "mask_column": "domain_a_seq_39_mask",
+      "length_column": "domain_a_seq_39_len",
+      "target_length": 256,
+      "resolved_from": "domain_a_seq",
+      "observed_max_length": 1888,
+      "observed_mean_length": 701.086,
+      "truncated_rows": 719,
+      "empty_rows": 5
+    },
+    "domain_a_seq_40": {
+      "tensor_column": "domain_a_seq_40_tensor",
+      "mask_column": "domain_a_seq_40_mask",
+      "length_column": "domain_a_seq_40_len",
+      "target_length": 256,
+      "resolved_from": "domain_a_seq",
+      "observed_max_length": 1888,
+      "observed_mean_length": 701.086,
+      "truncated_rows": 719,
+      "empty_rows": 5
+    },
+    "domain_a_seq_41": {
+      "tensor_column": "domain_a_seq_41_tensor",
+      "mask_column": "domain_a_seq_41_mask",
+      "length_column": "domain_a_seq_41_len",
+      "target_length": 256,
+      "resolved_from": "domain_a_seq",
+      "observed_max_length": 1888,
+      "observed_mean_length": 701.086,
+      "truncated_rows": 719,
+      "empty_rows": 5
+    },
+    "domain_a_seq_42": {
+      "tensor_column": "domain_a_seq_42_tensor",
+      "mask_column": "domain_a_seq_42_mask",
+      "length_column": "domain_a_seq_42_len",
+      "target_length": 256,
+      "resolved_from": "domain_a_seq",
+      "observed_max_length": 1888,
+      "observed_mean_length": 701.086,
+      "truncated_rows": 719,
+      "empty_rows": 5
+    },
+    "domain_a_seq_43": {
+      "tensor_column": "domain_a_seq_43_tensor",
+      "mask_column": "domain_a_seq_43_mask",
+      "length_column": "domain_a_seq_43_len",
+      "target_length": 256,
+      "resolved_from": "domain_a_seq",
+      "observed_max_length": 1888,
+      "observed_mean_length": 701.086,
+      "truncated_rows": 719,
+      "empty_rows": 5
+    },
+    "domain_a_seq_44": {
+      "tensor_column": "domain_a_seq_44_tensor",
+      "mask_column": "domain_a_seq_44_mask",
+      "length_column": "domain_a_seq_44_len",
+      "target_length": 256,
+      "resolved_from": "domain_a_seq",
+      "observed_max_length": 1888,
+      "observed_mean_length": 701.086,
+      "truncated_rows": 719,
+      "empty_rows": 5
+    },
+    "domain_a_seq_45": {
+      "tensor_column": "domain_a_seq_45_tensor",
+      "mask_column": "domain_a_seq_45_mask",
+      "length_column": "domain_a_seq_45_len",
+      "target_length": 256,
+      "resolved_from": "domain_a_seq",
+      "observed_max_length": 1888,
+      "observed_mean_length": 701.086,
+      "truncated_rows": 719,
+      "empty_rows": 5
+    },
+    "domain_a_seq_46": {
+      "tensor_column": "domain_a_seq_46_tensor",
+      "mask_column": "domain_a_seq_46_mask",
+      "length_column": "domain_a_seq_46_len",
+      "target_length": 256,
+      "resolved_from": "domain_a_seq",
+      "observed_max_length": 1888,
+      "observed_mean_length": 701.086,
+      "truncated_rows": 719,
+      "empty_rows": 5
+    },
+    "domain_b_seq_67": {
+      "tensor_column": "domain_b_seq_67_tensor",
+      "mask_column": "domain_b_seq_67_mask",
+      "length_column": "domain_b_seq_67_len",
+      "target_length": 256,
+      "resolved_from": "domain_b_seq",
+      "observed_max_length": 1952,
+      "observed_mean_length": 570.758,
+      "truncated_rows": 624,
+      "empty_rows": 12
+    },
+    "domain_b_seq_68": {
+      "tensor_column": "domain_b_seq_68_tensor",
+      "mask_column": "domain_b_seq_68_mask",
+      "length_column": "domain_b_seq_68_len",
+      "target_length": 256,
+      "resolved_from": "domain_b_seq",
+      "observed_max_length": 1952,
+      "observed_mean_length": 570.758,
+      "truncated_rows": 624,
+      "empty_rows": 12
+    },
+    "domain_b_seq_69": {
+      "tensor_column": "domain_b_seq_69_tensor",
+      "mask_column": "domain_b_seq_69_mask",
+      "length_column": "domain_b_seq_69_len",
+      "target_length": 256,
+      "resolved_from": "domain_b_seq",
+      "observed_max_length": 1952,
+      "observed_mean_length": 570.758,
+      "truncated_rows": 624,
+      "empty_rows": 12
+    },
+    "domain_b_seq_70": {
+      "tensor_column": "domain_b_seq_70_tensor",
+      "mask_column": "domain_b_seq_70_mask",
+      "length_column": "domain_b_seq_70_len",
+      "target_length": 256,
+      "resolved_from": "domain_b_seq",
+      "observed_max_length": 1952,
+      "observed_mean_length": 570.758,
+      "truncated_rows": 624,
+      "empty_rows": 12
+    },
+    "domain_b_seq_71": {
+      "tensor_column": "domain_b_seq_71_tensor",
+      "mask_column": "domain_b_seq_71_mask",
+      "length_column": "domain_b_seq_71_len",
+      "target_length": 256,
+      "resolved_from": "domain_b_seq",
+      "observed_max_length": 1952,
+      "observed_mean_length": 570.758,
+      "truncated_rows": 624,
+      "empty_rows": 12
+    },
+    "domain_b_seq_72": {
+      "tensor_column": "domain_b_seq_72_tensor",
+      "mask_column": "domain_b_seq_72_mask",
+      "length_column": "domain_b_seq_72_len",
+      "target_length": 256,
+      "resolved_from": "domain_b_seq",
+      "observed_max_length": 1952,
+      "observed_mean_length": 570.758,
+      "truncated_rows": 624,
+      "empty_rows": 12
+    },
+    "domain_b_seq_73": {
+      "tensor_column": "domain_b_seq_73_tensor",
+      "mask_column": "domain_b_seq_73_mask",
+      "length_column": "domain_b_seq_73_len",
+      "target_length": 256,
+      "resolved_from": "domain_b_seq",
+      "observed_max_length": 1952,
+      "observed_mean_length": 570.758,
+      "truncated_rows": 624,
+      "empty_rows": 12
+    },
+    "domain_b_seq_74": {
+      "tensor_column": "domain_b_seq_74_tensor",
+      "mask_column": "domain_b_seq_74_mask",
+      "length_column": "domain_b_seq_74_len",
+      "target_length": 256,
+      "resolved_from": "domain_b_seq",
+      "observed_max_length": 1952,
+      "observed_mean_length": 570.758,
+      "truncated_rows": 624,
+      "empty_rows": 12
+    },
+    "domain_b_seq_75": {
+      "tensor_column": "domain_b_seq_75_tensor",
+      "mask_column": "domain_b_seq_75_mask",
+      "length_column": "domain_b_seq_75_len",
+      "target_length": 256,
+      "resolved_from": "domain_b_seq",
+      "observed_max_length": 1952,
+      "observed_mean_length": 570.758,
+      "truncated_rows": 624,
+      "empty_rows": 12
+    },
+    "domain_b_seq_76": {
+      "tensor_column": "domain_b_seq_76_tensor",
+      "mask_column": "domain_b_seq_76_mask",
+      "length_column": "domain_b_seq_76_len",
+      "target_length": 256,
+      "resolved_from": "domain_b_seq",
+      "observed_max_length": 1952,
+      "observed_mean_length": 570.758,
+      "truncated_rows": 624,
+      "empty_rows": 12
+    },
+    "domain_b_seq_77": {
+      "tensor_column": "domain_b_seq_77_tensor",
+      "mask_column": "domain_b_seq_77_mask",
+      "length_column": "domain_b_seq_77_len",
+      "target_length": 256,
+      "resolved_from": "domain_b_seq",
+      "observed_max_length": 1952,
+      "observed_mean_length": 570.758,
+      "truncated_rows": 624,
+      "empty_rows": 12
+    },
+    "domain_b_seq_78": {
+      "tensor_column": "domain_b_seq_78_tensor",
+      "mask_column": "domain_b_seq_78_mask",
+      "length_column": "domain_b_seq_78_len",
+      "target_length": 256,
+      "resolved_from": "domain_b_seq",
+      "observed_max_length": 1952,
+      "observed_mean_length": 570.758,
+      "truncated_rows": 624,
+      "empty_rows": 12
+    },
+    "domain_b_seq_79": {
+      "tensor_column": "domain_b_seq_79_tensor",
+      "mask_column": "domain_b_seq_79_mask",
+      "length_column": "domain_b_seq_79_len",
+      "target_length": 256,
+      "resolved_from": "domain_b_seq",
+      "observed_max_length": 1952,
+      "observed_mean_length": 570.758,
+      "truncated_rows": 624,
+      "empty_rows": 12
+    },
+    "domain_b_seq_88": {
+      "tensor_column": "domain_b_seq_88_tensor",
+      "mask_column": "domain_b_seq_88_mask",
+      "length_column": "domain_b_seq_88_len",
+      "target_length": 256,
+      "resolved_from": "domain_b_seq",
+      "observed_max_length": 1952,
+      "observed_mean_length": 570.758,
+      "truncated_rows": 624,
+      "empty_rows": 12
+    },
+    "domain_c_seq_27": {
+      "tensor_column": "domain_c_seq_27_tensor",
+      "mask_column": "domain_c_seq_27_mask",
+      "length_column": "domain_c_seq_27_len",
+      "target_length": 512,
+      "resolved_from": "domain_c_seq",
+      "observed_max_length": 3894,
+      "observed_mean_length": 449.431,
+      "truncated_rows": 266,
+      "empty_rows": 2
+    },
+    "domain_c_seq_28": {
+      "tensor_column": "domain_c_seq_28_tensor",
+      "mask_column": "domain_c_seq_28_mask",
+      "length_column": "domain_c_seq_28_len",
+      "target_length": 512,
+      "resolved_from": "domain_c_seq",
+      "observed_max_length": 3894,
+      "observed_mean_length": 449.431,
+      "truncated_rows": 266,
+      "empty_rows": 2
+    },
+    "domain_c_seq_29": {
+      "tensor_column": "domain_c_seq_29_tensor",
+      "mask_column": "domain_c_seq_29_mask",
+      "length_column": "domain_c_seq_29_len",
+      "target_length": 512,
+      "resolved_from": "domain_c_seq",
+      "observed_max_length": 3894,
+      "observed_mean_length": 449.431,
+      "truncated_rows": 266,
+      "empty_rows": 2
+    },
+    "domain_c_seq_30": {
+      "tensor_column": "domain_c_seq_30_tensor",
+      "mask_column": "domain_c_seq_30_mask",
+      "length_column": "domain_c_seq_30_len",
+      "target_length": 512,
+      "resolved_from": "domain_c_seq",
+      "observed_max_length": 3894,
+      "observed_mean_length": 449.431,
+      "truncated_rows": 266,
+      "empty_rows": 2
+    },
+    "domain_c_seq_31": {
+      "tensor_column": "domain_c_seq_31_tensor",
+      "mask_column": "domain_c_seq_31_mask",
+      "length_column": "domain_c_seq_31_len",
+      "target_length": 512,
+      "resolved_from": "domain_c_seq",
+      "observed_max_length": 3894,
+      "observed_mean_length": 449.431,
+      "truncated_rows": 266,
+      "empty_rows": 2
+    },
+    "domain_c_seq_32": {
+      "tensor_column": "domain_c_seq_32_tensor",
+      "mask_column": "domain_c_seq_32_mask",
+      "length_column": "domain_c_seq_32_len",
+      "target_length": 512,
+      "resolved_from": "domain_c_seq",
+      "observed_max_length": 3894,
+      "observed_mean_length": 449.431,
+      "truncated_rows": 266,
+      "empty_rows": 2
+    },
+    "domain_c_seq_33": {
+      "tensor_column": "domain_c_seq_33_tensor",
+      "mask_column": "domain_c_seq_33_mask",
+      "length_column": "domain_c_seq_33_len",
+      "target_length": 512,
+      "resolved_from": "domain_c_seq",
+      "observed_max_length": 3894,
+      "observed_mean_length": 449.431,
+      "truncated_rows": 266,
+      "empty_rows": 2
+    },
+    "domain_c_seq_34": {
+      "tensor_column": "domain_c_seq_34_tensor",
+      "mask_column": "domain_c_seq_34_mask",
+      "length_column": "domain_c_seq_34_len",
+      "target_length": 512,
+      "resolved_from": "domain_c_seq",
+      "observed_max_length": 3894,
+      "observed_mean_length": 449.431,
+      "truncated_rows": 266,
+      "empty_rows": 2
+    },
+    "domain_c_seq_35": {
+      "tensor_column": "domain_c_seq_35_tensor",
+      "mask_column": "domain_c_seq_35_mask",
+      "length_column": "domain_c_seq_35_len",
+      "target_length": 512,
+      "resolved_from": "domain_c_seq",
+      "observed_max_length": 3894,
+      "observed_mean_length": 449.431,
+      "truncated_rows": 266,
+      "empty_rows": 2
+    },
+    "domain_c_seq_36": {
+      "tensor_column": "domain_c_seq_36_tensor",
+      "mask_column": "domain_c_seq_36_mask",
+      "length_column": "domain_c_seq_36_len",
+      "target_length": 512,
+      "resolved_from": "domain_c_seq",
+      "observed_max_length": 3894,
+      "observed_mean_length": 449.431,
+      "truncated_rows": 266,
+      "empty_rows": 2
+    },
+    "domain_c_seq_37": {
+      "tensor_column": "domain_c_seq_37_tensor",
+      "mask_column": "domain_c_seq_37_mask",
+      "length_column": "domain_c_seq_37_len",
+      "target_length": 512,
+      "resolved_from": "domain_c_seq",
+      "observed_max_length": 3894,
+      "observed_mean_length": 449.431,
+      "truncated_rows": 266,
+      "empty_rows": 2
+    },
+    "domain_c_seq_47": {
+      "tensor_column": "domain_c_seq_47_tensor",
+      "mask_column": "domain_c_seq_47_mask",
+      "length_column": "domain_c_seq_47_len",
+      "target_length": 512,
+      "resolved_from": "domain_c_seq",
+      "observed_max_length": 3894,
+      "observed_mean_length": 449.431,
+      "truncated_rows": 266,
+      "empty_rows": 2
+    },
+    "domain_d_seq_17": {
+      "tensor_column": "domain_d_seq_17_tensor",
+      "mask_column": "domain_d_seq_17_mask",
+      "length_column": "domain_d_seq_17_len",
+      "target_length": 1024,
+      "resolved_from": "domain_d_seq",
+      "observed_max_length": 3951,
+      "observed_mean_length": 1099.859,
+      "truncated_rows": 505,
+      "empty_rows": 80
+    },
+    "domain_d_seq_18": {
+      "tensor_column": "domain_d_seq_18_tensor",
+      "mask_column": "domain_d_seq_18_mask",
+      "length_column": "domain_d_seq_18_len",
+      "target_length": 1024,
+      "resolved_from": "domain_d_seq",
+      "observed_max_length": 3951,
+      "observed_mean_length": 1099.859,
+      "truncated_rows": 505,
+      "empty_rows": 80
+    },
+    "domain_d_seq_19": {
+      "tensor_column": "domain_d_seq_19_tensor",
+      "mask_column": "domain_d_seq_19_mask",
+      "length_column": "domain_d_seq_19_len",
+      "target_length": 1024,
+      "resolved_from": "domain_d_seq",
+      "observed_max_length": 3951,
+      "observed_mean_length": 1099.859,
+      "truncated_rows": 505,
+      "empty_rows": 80
+    },
+    "domain_d_seq_20": {
+      "tensor_column": "domain_d_seq_20_tensor",
+      "mask_column": "domain_d_seq_20_mask",
+      "length_column": "domain_d_seq_20_len",
+      "target_length": 1024,
+      "resolved_from": "domain_d_seq",
+      "observed_max_length": 3951,
+      "observed_mean_length": 1099.859,
+      "truncated_rows": 505,
+      "empty_rows": 80
+    },
+    "domain_d_seq_21": {
+      "tensor_column": "domain_d_seq_21_tensor",
+      "mask_column": "domain_d_seq_21_mask",
+      "length_column": "domain_d_seq_21_len",
+      "target_length": 1024,
+      "resolved_from": "domain_d_seq",
+      "observed_max_length": 3951,
+      "observed_mean_length": 1099.859,
+      "truncated_rows": 505,
+      "empty_rows": 80
+    },
+    "domain_d_seq_22": {
+      "tensor_column": "domain_d_seq_22_tensor",
+      "mask_column": "domain_d_seq_22_mask",
+      "length_column": "domain_d_seq_22_len",
+      "target_length": 1024,
+      "resolved_from": "domain_d_seq",
+      "observed_max_length": 3951,
+      "observed_mean_length": 1099.859,
+      "truncated_rows": 505,
+      "empty_rows": 80
+    },
+    "domain_d_seq_23": {
+      "tensor_column": "domain_d_seq_23_tensor",
+      "mask_column": "domain_d_seq_23_mask",
+      "length_column": "domain_d_seq_23_len",
+      "target_length": 1024,
+      "resolved_from": "domain_d_seq",
+      "observed_max_length": 3951,
+      "observed_mean_length": 1099.859,
+      "truncated_rows": 505,
+      "empty_rows": 80
+    },
+    "domain_d_seq_24": {
+      "tensor_column": "domain_d_seq_24_tensor",
+      "mask_column": "domain_d_seq_24_mask",
+      "length_column": "domain_d_seq_24_len",
+      "target_length": 1024,
+      "resolved_from": "domain_d_seq",
+      "observed_max_length": 3951,
+      "observed_mean_length": 1099.859,
+      "truncated_rows": 505,
+      "empty_rows": 80
+    },
+    "domain_d_seq_25": {
+      "tensor_column": "domain_d_seq_25_tensor",
+      "mask_column": "domain_d_seq_25_mask",
+      "length_column": "domain_d_seq_25_len",
+      "target_length": 1024,
+      "resolved_from": "domain_d_seq",
+      "observed_max_length": 3951,
+      "observed_mean_length": 1099.859,
+      "truncated_rows": 505,
+      "empty_rows": 80
+    },
+    "domain_d_seq_26": {
+      "tensor_column": "domain_d_seq_26_tensor",
+      "mask_column": "domain_d_seq_26_mask",
+      "length_column": "domain_d_seq_26_len",
+      "target_length": 1024,
+      "resolved_from": "domain_d_seq",
+      "observed_max_length": 3951,
+      "observed_mean_length": 1099.859,
+      "truncated_rows": 505,
+      "empty_rows": 80
+    }
+  }
+}

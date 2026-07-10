@@ -8,7 +8,7 @@ import os
 import glob
 import shutil
 import logging
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
@@ -58,7 +58,6 @@ class PCVRHyFormerRankingTrainer:
         ns_groups_path: Optional[str] = None,
         eval_every_n_steps: int = 0,
         train_config: Optional[Dict[str, Any]] = None,
-        publish_epochs: Optional[Any] = None,
     ) -> None:
         self.model: nn.Module = model
         self.train_loader: DataLoader = train_loader
@@ -108,18 +107,10 @@ class PCVRHyFormerRankingTrainer:
         self.ckpt_params: Dict[str, Any] = ckpt_params or {}
         self.eval_every_n_steps: int = eval_every_n_steps
         self.train_config: Optional[Dict[str, Any]] = train_config
-        self.publish_epochs: Set[int] = {
-            int(epoch) for epoch in (publish_epochs or [])
-        }
 
         logging.info(f"PCVRHyFormerRankingTrainer loss_type={loss_type}, "
                      f"focal_alpha={focal_alpha}, focal_gamma={focal_gamma}, "
                      f"reinit_sparse_after_epoch={reinit_sparse_after_epoch}")
-        if self.publish_epochs:
-            logging.info(
-                "Extra publishable checkpoints will be exported at epochs: %s",
-                sorted(self.publish_epochs),
-            )
 
     def _build_step_dir_name(self, global_step: int, is_best: bool = False) -> str:
         """Build a checkpoint sub-directory name such as
@@ -133,14 +124,6 @@ class PCVRHyFormerRankingTrainer:
         if is_best:
             name += ".best_model"
         return name
-
-    def _build_epoch_dir_name(self, epoch: int, global_step: int) -> str:
-        """Build a stable directory name for manually publishable epoch exports."""
-        parts = [f"epoch{epoch}", f"global_step{global_step}"]
-        for key in ("layer", "head", "hidden"):
-            if key in self.ckpt_params:
-                parts.append(f"{key}={self.ckpt_params[key]}")
-        return ".".join(parts)
 
     def _write_sidecar_files(self, ckpt_dir: str) -> None:
         """Write sidecar files next to a ``model.pt``.
@@ -209,26 +192,6 @@ class PCVRHyFormerRankingTrainer:
             torch.save(self.model.state_dict(), os.path.join(ckpt_dir, "model.pt"))
         self._write_sidecar_files(ckpt_dir)
         logging.info(f"Saved checkpoint to {ckpt_dir}/model.pt")
-        return ckpt_dir
-
-    def _save_publish_epoch_checkpoint(self, epoch: int, global_step: int) -> str:
-        """Save an extra self-contained checkpoint for a user-selected epoch."""
-        # NOTE: PUBLISH_EPOCHS - these dirs are intentionally never cleaned up
-        # so the training platform can surface multiple publishable candidates
-        # under TRAIN_CKPT_PATH at the same time.
-        ckpt_dir = os.path.join(
-            self.save_dir,
-            self._build_epoch_dir_name(epoch, global_step),
-        )
-        os.makedirs(ckpt_dir, exist_ok=True)
-        torch.save(self.model.state_dict(), os.path.join(ckpt_dir, "model.pt"))
-        self._write_sidecar_files(ckpt_dir)
-        logging.info(
-            "Saved publishable epoch checkpoint: epoch=%s step=%s dir=%s",
-            epoch,
-            global_step,
-            ckpt_dir,
-        )
         return ckpt_dir
 
     def _remove_old_best_dirs(self) -> None:
@@ -330,8 +293,6 @@ class PCVRHyFormerRankingTrainer:
         """
         print("Start training (PCVRHyFormer)")
         self.model.train()
-        if hasattr(self.model, 'log_hash_gates'):
-            self.model.log_hash_gates("HashGate at train start")
         total_step = 0
 
         for epoch in range(1, self.num_epochs + 1):
@@ -375,27 +336,12 @@ class PCVRHyFormerRankingTrainer:
             torch.cuda.empty_cache()
 
             logging.info(f"Epoch {epoch} Validation | AUC: {val_auc}, LogLoss: {val_logloss}")
-            if hasattr(self.model, 'log_hash_gates'):
-                self.model.log_hash_gates(f"HashGate after epoch {epoch}")
 
             if self.writer:
                 self.writer.add_scalar('AUC/valid', val_auc, total_step)
                 self.writer.add_scalar('LogLoss/valid', val_logloss, total_step)
 
             self._handle_validation_result(total_step, val_auc, val_logloss)
-
-            if epoch in self.publish_epochs:
-                self._save_publish_epoch_checkpoint(epoch, total_step)
-
-            # For fixed-short final-fit runs, force the last trained epoch to be exported
-            # as the selected best_model checkpoint.  This avoids accidentally submitting
-            # epoch1 when the monitor AUC is noisy/overlapping.  Save before the epoch-end
-            # sparse reinit, so the exported checkpoint is exactly the trained epoch model.
-            if epoch == self.num_epochs:
-                self._remove_old_best_dirs()
-                self._save_step_checkpoint(total_step, is_best=True, skip_model_file=False)
-                logging.info(f"Saved final epoch {epoch} checkpoint as best_model at step {total_step}")
-                break
 
             if self.early_stopping.early_stop:
                 logging.info(f"Early stopping at epoch {epoch}")
@@ -407,51 +353,27 @@ class PCVRHyFormerRankingTrainer:
             # for Click-Through Rate Prediction",
             # https://arxiv.org/pdf/2305.19531
             if epoch >= self.reinit_sparse_after_epoch and self.sparse_optimizer is not None:
-                # Memory-safe sparse reinit.  The previous implementation kept a
-                # dict with *all* old Adagrad accumulator tensors in scope after
-                # rebuilding the optimizer.  For this model those accumulators are
-                # huge (hundreds of millions of sparse params), so epoch 2 could
-                # OOM right after reinit.
-                #
-                # In our submitted setting reinit_cardinality_threshold=0, so all
-                # sparse embeddings are cold-restarted and there is no useful old
-                # sparse optimizer state to preserve.  For nonzero thresholds we
-                # still keep the original restoration path, but explicitly drop all
-                # old references and clear CUDA cache immediately afterwards.
-                old_optimizer = self.sparse_optimizer
+                # Snapshot Adagrad state per parameter via data_ptr, so state
+                # of low-cardinality embeddings can be preserved across rebuild.
                 old_state: Dict[int, Any] = {}
-                if self.reinit_cardinality_threshold > 0:
-                    for group in old_optimizer.param_groups:
-                        for p in group['params']:
-                            state = old_optimizer.state.get(p, None)
-                            if state is not None:
-                                old_state[p.data_ptr()] = state
+                for group in self.sparse_optimizer.param_groups:
+                    for p in group['params']:
+                        if p.data_ptr() in self.sparse_optimizer.state:
+                            old_state[p.data_ptr()] = self.sparse_optimizer.state[p]
 
                 reinit_ptrs = self.model.reinit_high_cardinality_params(self.reinit_cardinality_threshold)
                 sparse_params = self.model.get_sparse_params()
                 self.sparse_optimizer = torch.optim.Adagrad(
                     sparse_params, lr=self.sparse_lr, weight_decay=self.sparse_weight_decay
                 )
-
+                # Restore optimizer state for low-cardinality embeddings only.
                 restored = 0
-                if old_state:
-                    for p in sparse_params:
-                        if p.data_ptr() not in reinit_ptrs and p.data_ptr() in old_state:
-                            self.sparse_optimizer.state[p] = old_state[p.data_ptr()]
-                            restored += 1
-
-                # Drop all references to the old optimizer/state before the next
-                # epoch starts.  This is essential on 20GB cards / shared vGPU.
-                del old_state
-                del old_optimizer
-                import gc
-                gc.collect()
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-
+                for p in sparse_params:
+                    if p.data_ptr() not in reinit_ptrs and p.data_ptr() in old_state:
+                        self.sparse_optimizer.state[p] = old_state[p.data_ptr()]
+                        restored += 1
                 logging.info(f"Rebuilt Adagrad optimizer after epoch {epoch}, "
-                             f"restored optimizer state for {restored} low-cardinality params; "
-                             f"cleared old optimizer state/cache")
+                             f"restored optimizer state for {restored} low-cardinality params")
 
     def _make_model_input(self, device_batch: Dict[str, Any]) -> ModelInput:
         """Construct a ``ModelInput`` NamedTuple from a device_batch dict."""
