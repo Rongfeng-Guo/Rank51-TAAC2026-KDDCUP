@@ -194,13 +194,3 @@ utils.py        # seed、logger、EarlyStopping、focal loss 等工具
 run.sh          # 默认训练脚本
 ns_groups.json  # NS token 分组配置
 ```
-
-## 复现边界
-
-- 线上分数依赖官方测试集、提交窗口和当时的训练数据版本，仓库代码不能单独保证复现完全相同的榜单分数。
-- 默认配置记录的是最终提交阶段使用的主方案；历史实验、失败分支和私有运行日志没有完整纳入仓库。
-- 若更换 GPU 显存、PyTorch/CUDA 版本或 batch size，建议先使用较小 `SEQ_HASH_BUCKET_SIZE` 和 `BATCH_SIZE` 做 smoke run，再恢复提交配置。
-
-## 引用
-
-如果这个方案对你的竞赛复盘或研究有帮助，可以引用本仓库的 `CITATION.cff`。
